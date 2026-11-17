@@ -94,6 +94,9 @@ final class AppModel {
     // MARK: Lifecycle
 
     func launch() {
+        DiagnosticLog.rotate()
+        let bundle = Bundle.main.bundlePath
+        DiagnosticLog.write("launch \(bundle) AX=\(AXIsProcessTrusted()) listen=\(CGPreflightListenEventAccess()) post=\(CGPreflightPostEventAccess())")
         dictation.model = asrModel
         dictation.meName = meName
         dictation.learnMyVoice = learnMyVoice
@@ -154,6 +157,7 @@ final class AppModel {
             while true {
                 let ax = AXIsProcessTrusted()
                 if ax != hasAccessibility || (ax && !fnMonitorRunning) {
+                    DiagnosticLog.write("permissions: AX \(hasAccessibility) -> \(ax), tap running=\(fnMonitorRunning)")
                     hasAccessibility = ax
                     if ax { fnMonitorRunning = fnMonitor.start() }
                 }

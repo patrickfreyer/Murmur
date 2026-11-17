@@ -73,6 +73,7 @@ public final class DictationController {
     // MARK: - Key handling
 
     public func handle(_ event: FnKeyMonitor.Event) {
+        DiagnosticLog.write("fn event \(event) in state \(state)")
         switch event {
         case .pressed:
             switch state {

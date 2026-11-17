@@ -195,7 +195,9 @@ struct SetupCard: View {
                 }
                 PermissionRow(
                     title: "Accessibility",
-                    detail: "To notice the fn key and type into other apps.",
+                    detail: model.hasAccessibility
+                        ? "To notice the fn key and type into other apps."
+                        : "To notice the fn key and type into other apps. Already switched on? Select Murmur in the list, remove it with −, then add it again: macOS ties the permission to the exact app build.",
                     symbol: "accessibility", granted: model.hasAccessibility
                 ) {
                     model.requestAccessibility()
