@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key><string>Murmur</string>
+	<key>CFBundleDisplayName</key><string>Murmur</string>
+	<key>CFBundleIdentifier</key><string>com.patrickfreyer.murmur</string>
+	<key>CFBundleExecutable</key><string>Murmur</string>
+	<key>CFBundlePackageType</key><string>APPL</string>
+	<key>CFBundleShortVersionString</key><string>0.1.0</string>
+	<key>CFBundleVersion</key><string>1</string>
+	<key>CFBundleIconFile</key><string>AppIcon</string>
+	<key>LSMinimumSystemVersion</key><string>26.0</string>
+	<key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
+	<key>NSHighResolutionCapable</key><true/>
+	<key>NSPrincipalClass</key><string>NSApplication</string>
+	<key>NSMicrophoneUsageDescription</key><string>Murmur transcribes your voice on this Mac when you hold fn or record a meeting.</string>
+	<key>NSAudioCaptureUsageDescription</key><string>Murmur records call audio so meetings can be transcribed on this Mac.</string>
+	<key>NSAppleEventsUsageDescription</key><string>Murmur inserts dictated text into the app you are using.</string>
+</dict>
+</plist>
