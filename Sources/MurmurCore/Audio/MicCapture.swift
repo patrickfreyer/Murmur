@@ -7,6 +7,7 @@ public final class MicCapture {
     private let resampler = Resampler()
     private let log = Logger(subsystem: "com.patrickfreyer.murmur", category: "Mic")
     private var running = false
+    private var outputWired = false
 
     /// Called on the audio render thread with 16 kHz mono samples.
     public var onSamples: (([Float]) -> Void)?
@@ -38,6 +39,13 @@ public final class MicCapture {
             }
         }
         let format = input.outputFormat(forBus: 0)
+        if input.isVoiceProcessingEnabled, !outputWired {
+            // Voice-processing I/O only produces samples while its output side runs too:
+            // route the mic into a muted mixer so the unit is pulled without playing anything.
+            engine.connect(input, to: engine.mainMixerNode, format: format)
+            engine.mainMixerNode.outputVolume = 0
+            outputWired = true
+        }
         guard format.sampleRate > 0, format.channelCount > 0 else {
             throw CaptureError.noInputDevice
         }

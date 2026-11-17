@@ -54,7 +54,7 @@ public struct VoiceMatcher: Sendable {
     /// Required lead over the runner-up, so two similar voices don't get confused.
     public var margin: Float
 
-    public init(threshold: Float = 0.6, margin: Float = 0.06) {
+    public init(threshold: Float = 0.65, margin: Float = 0.06) {
         self.threshold = threshold
         self.margin = margin
     }
@@ -79,7 +79,7 @@ public struct VoiceMatcher: Sendable {
             if let m = bestMatch(for: s.embedding, in: prints) { candidates.append((i, m)) }
         }
         var used = Set<String>()
-        for (i, s) in speakers.enumerated() where s.isConfirmed {
+        for s in speakers where s.isConfirmed {
             if let id = s.voicePrintID { used.insert("\(s.track.rawValue):\(id)") }
         }
         for c in candidates.sorted(by: { $0.match.score > $1.match.score }) {

@@ -65,7 +65,11 @@ public final class SystemAudioCapture {
         aggregateID = aggregateDevice
 
         status = AudioDeviceCreateIOProcIDWithBlock(&ioProcID, aggregateDevice, queue) {
-            [weak self] _, inputData, _, _, _ in
+            [weak self] _, inputData, inputTime, _, _ in
+            if ProcessInfo.processInfo.environment["MURMUR_DEBUG_TAP"] != nil {
+                let abl = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: inputData))
+                print("tap cb buffers=\(abl.count) bytes=\(abl.map(\.mDataByteSize)) ch=\(abl.map(\.mNumberChannels)) t=\(inputTime.pointee.mSampleTime)")
+            }
             guard let self,
                 let buffer = AVAudioPCMBuffer(pcmFormat: format, bufferListNoCopy: inputData, deallocator: nil)
             else { return }
@@ -81,6 +85,7 @@ public final class SystemAudioCapture {
             stop()
             throw CaptureError.coreAudio("Starting system audio capture", status)
         }
+        if ProcessInfo.processInfo.environment["MURMUR_DEBUG_TAP"] != nil { print("tap format: \(format) asbd=\(asbd)") }
         log.info("System audio capture started at \(format.sampleRate) Hz, \(format.channelCount) ch")
     }
 

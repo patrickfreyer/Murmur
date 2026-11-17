@@ -58,16 +58,17 @@ public final class MeetingRecorder {
         do {
             try FileManager.default.createDirectory(
                 at: Paths.meetingFolder(meeting.id), withIntermediateDirectories: true)
-            let micTrack = try TrackRecorder(url: Paths.track(.mic, meeting: meeting.id))
+            let clock = ProcessInfo.processInfo.systemUptime
+            let micTrack = try TrackRecorder(url: Paths.track(.mic, meeting: meeting.id), clockStart: clock)
             let mic = MicCapture()
             mic.onSamples = { micTrack.append($0) }
-            try mic.start(echoCancellation: echoCancellation && captureSystemAudio)
+            try mic.start(echoCancellation: false)
             self.mic = mic
             tracks[.mic] = micTrack
 
             if captureSystemAudio {
                 do {
-                    let sysTrack = try TrackRecorder(url: Paths.track(.system, meeting: meeting.id))
+                    let sysTrack = try TrackRecorder(url: Paths.track(.system, meeting: meeting.id), clockStart: clock)
                     let system = SystemAudioCapture()
                     system.onSamples = { sysTrack.append($0) }
                     try system.start()

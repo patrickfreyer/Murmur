@@ -82,8 +82,7 @@ private struct MeetingSettings: View {
         Form {
             Section("Recording") {
                 Toggle("Record call audio (system audio)", isOn: $model.captureSystemAudio)
-                Toggle("Echo cancellation for the microphone", isOn: $model.echoCancellation)
-                Text("Keeps speaker audio out of your mic track when you're not wearing headphones.")
+                Text("No headphones? Call audio that leaks from the speakers into your mic is recognised by voice and removed from the transcript.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("After the meeting") {

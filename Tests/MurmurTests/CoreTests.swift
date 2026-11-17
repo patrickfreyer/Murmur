@@ -95,3 +95,16 @@ import Testing
         #expect(m.srt.contains("00:01:01,500 --> 00:01:03,000"))
     }
 }
+
+@Suite struct EchoFilterTests {
+    @Test func micClusterMatchingCallVoiceIsEcho() {
+        let voice: [Float] = (0..<32).map { sin(Float($0) * 0.3) }
+        let me: [Float] = (0..<32).map { cos(Float($0) * 1.7) }
+        let centroids = ["system:S1": voice, "mic:S1": voice.map { $0 * 0.9 + 0.01 }, "mic:S2": me]
+        #expect(EchoFilter.echoSpeakers(centroids: centroids) == ["mic:S1"])
+    }
+
+    @Test func noCallAudioMeansNoEcho() {
+        #expect(EchoFilter.echoSpeakers(centroids: ["mic:S1": [1, 0], "mic:S2": [1, 0]]).isEmpty)
+    }
+}

@@ -55,7 +55,7 @@ public enum MeetingProcessor {
                 }
             }
 
-            let words = TranscriptAssembler.removeEcho(allWords)
+            var words = TranscriptAssembler.removeEcho(allWords)
             var speakerIDs = [String](repeating: "", count: words.count)
             for track in AudioTrack.allCases {
                 let idx = words.indices.filter { words[$0].track == track }
@@ -63,6 +63,25 @@ public enum MeetingProcessor {
                 let assigned = TranscriptAssembler.assignSpeakers(
                     words: idx.map { words[$0] }, turns: turns[track] ?? [], fallback: fallback)
                 for (i, sp) in zip(idx, assigned) { speakerIDs[i] = sp }
+            }
+            // Laptop speakers leak the call into the mic. Such a mic "speaker" has the same voice as a
+            // call participant, so drop its words wherever the call track was speaking at that moment.
+            if ProcessInfo.processInfo.environment["MURMUR_DEBUG_ECHO"] != nil {
+                for (k, v) in centroids where k.hasPrefix("mic:") {
+                    for (k2, v2) in centroids where k2.hasPrefix("system:") {
+                        print("cos \(k) vs \(k2) = \(AudioMath.cosine(v, v2))")
+                    }
+                }
+            }
+            let echoes = EchoFilter.echoSpeakers(centroids: centroids)
+            if !echoes.isEmpty {
+                let systemWords = words.filter { $0.track == .system }
+                let keep = words.indices.filter { i in
+                    !(echoes.contains(speakerIDs[i]) && EchoFilter.overlapsSpeech(words[i], systemWords))
+                }
+                words = keep.map { words[$0] }
+                speakerIDs = keep.map { speakerIDs[$0] }
+                log.info("Removed echo speakers \(echoes.sorted())")
             }
             let segments = TranscriptAssembler.segments(words: words, speakerIDs: speakerIDs)
             let talk = TranscriptAssembler.talkTime(segments)
@@ -123,6 +142,21 @@ public enum MeetingProcessor {
             }
         }
         return sums.mapValues(AudioMath.normalized)
+    }
+}
+
+public enum EchoFilter {
+    /// Mic speakers whose voice matches a call participant (speaker bleed rather than a person).
+    public static func echoSpeakers(centroids: [String: [Float]], threshold: Float = 0.72) -> Set<String> {
+        let system = centroids.filter { $0.key.hasPrefix("system:") }.map(\.value)
+        guard !system.isEmpty else { return [] }
+        return Set(centroids.filter { key, value in
+            key.hasPrefix("mic:") && system.contains { AudioMath.cosine($0, value) >= threshold }
+        }.keys)
+    }
+
+    public static func overlapsSpeech(_ word: Word, _ system: [Word], slack: TimeInterval = 0.6) -> Bool {
+        system.contains { $0.start - slack <= word.end && word.start <= $0.end + slack }
     }
 }
 

@@ -44,7 +44,7 @@ public final class DictationController {
     public var learnMyVoice = true
     public var meName = "Me"
     public var onDictation: ((Dictation) -> Void)?
-    public var onVoiceSample: (([Float]) -> Void)?
+    public var onVoiceSample: (@MainActor ([Float]) -> Void)?
 
     private let log = Logger(subsystem: "com.patrickfreyer.murmur", category: "Dictation")
     private let mic = MicCapture()
@@ -214,9 +214,10 @@ public final class DictationController {
         guard learnMyVoice, duration >= 2.5 else { return }
         voiceSamplesLearned += 1
         guard voiceSamplesLearned <= 25 || voiceSamplesLearned % 10 == 0 else { return }
-        Task.detached(priority: .background) { [weak self] in
+        let handler = onVoiceSample
+        Task.detached(priority: .background) {
             guard let embedding = try? await SpeechEngine.shared.embedding(for: samples) else { return }
-            await MainActor.run { self?.onVoiceSample?(embedding) }
+            await MainActor.run { handler?(embedding) }
         }
     }
 

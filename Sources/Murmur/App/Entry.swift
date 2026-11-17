@@ -13,6 +13,8 @@ enum Entry {
             run { try await SelfTest.transcribe(URL(fileURLWithPath: args[2])) }
         } else if args.count >= 4, args[1] == "--selftest" {
             run { try await SelfTest.meetings(URL(fileURLWithPath: args[2]), URL(fileURLWithPath: args[3])) }
+        } else if args.count >= 2, args[1] == "--capture-test" {
+            run { try await SelfTest.capture(seconds: Double(args.dropFirst(2).first ?? "") ?? 6) }
         } else {
             MurmurApp.main()
         }
@@ -95,6 +97,36 @@ enum SelfTest {
             print("\(ok ? "PASS" : "FAIL")  “\(phrase)” → \(got ?? "nil") (expected \(who))")
         }
         return failures == 0
+    }
+
+    /// Records mic + system audio for a few seconds and transcribes both tracks.
+    static func capture(seconds: Double) async throws -> Bool {
+        let store = MeetingStore()
+        let recorder = MeetingRecorder()
+        try await SpeechEngine.shared.prepareASR(.ultra)
+        await recorder.start(store: store, echoCancellation: ProcessInfo.processInfo.environment["AEC"] == "1", captureSystemAudio: true)
+        guard let id = recorder.meetingID else {
+            print("FAIL: could not start: \(recorder.lastError ?? "?")")
+            return false
+        }
+        print("recording… system audio error: \(recorder.systemAudioError ?? "none")")
+        var peakMic: Float = 0, peakSys: Float = 0
+        let end = Date().addingTimeInterval(seconds)
+        while Date() < end {
+            try await Task.sleep(for: .milliseconds(100))
+            peakMic = max(peakMic, recorder.micLevel)
+            peakSys = max(peakSys, recorder.systemLevel)
+        }
+        print("live lines: \(recorder.liveLines.map { "[\($0.track.rawValue)] \($0.text)" })")
+        await recorder.stop(store: store, voices: VoicePrintStore(), matcher: VoiceMatcher(), model: .ultra, meName: "Me")
+        let m = store.meeting(id)!
+        print("peak meter mic=\(peakMic) system=\(peakSys)")
+        for t in AudioTrack.allCases {
+            print("\(t.rawValue).caf duration: \(AudioFileInfo.duration(Paths.track(t, meeting: id)))")
+        }
+        print("status: \(m.status) \(m.statusDetail ?? "")")
+        dump(m)
+        return m.status == .ready
     }
 
     private static func importMeeting(_ dir: URL, title: String, store: MeetingStore) throws -> UUID {

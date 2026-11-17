@@ -69,7 +69,7 @@ final class AppModel {
     var showBubble: Bool = Defaults.bool("showBubble", true) {
         didSet { Defaults.set(showBubble, "showBubble"); bubble?.setVisible(showBubble) }
     }
-    var matchThreshold: Double = Defaults.double("matchThreshold", 0.6) {
+    var matchThreshold: Double = Defaults.double("matchThreshold", 0.65) {
         didSet { Defaults.set(matchThreshold, "matchThreshold") }
     }
     var launchAtLogin: Bool = SMAppService.mainApp.status == .enabled {
@@ -119,6 +119,7 @@ final class AppModel {
         startFnMonitorIfPossible()
         pollPermissions()
         loadModels()
+        Snapshots.runIfRequested(self)
     }
 
     func loadModels() {

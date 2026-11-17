@@ -9,9 +9,12 @@ public final class TrackRecorder: @unchecked Sendable {
     private var pending: [Float] = []
     private var pendingStart = 0
     private var written = 0
+    /// Uptime when the meeting started; both tracks are aligned to it.
+    private let clockStart: TimeInterval
 
-    public init(url: URL) throws {
+    public init(url: URL, clockStart: TimeInterval = ProcessInfo.processInfo.systemUptime) throws {
         self.url = url
+        self.clockStart = clockStart
         file = try AVAudioFile(
             forWriting: url, settings: AudioSpec.fileSettings, commonFormat: .pcmFormatFloat32, interleaved: false)
     }
@@ -19,7 +22,23 @@ public final class TrackRecorder: @unchecked Sendable {
     /// Called from audio threads.
     public func append(_ samples: [Float]) {
         meter.push(samples)
+        let arrival = ProcessInfo.processInfo.systemUptime
         queue.async { [self] in
+            // Sources like the system-audio tap go quiet (deliver nothing) when no app plays sound.
+            // Fill those holes with silence so the track stays on the meeting's clock.
+            let expected = Int((arrival - clockStart) * AudioSpec.sampleRate) - samples.count
+            if expected - written > Int(AudioSpec.sampleRate * 0.25) {
+                if ProcessInfo.processInfo.environment["MURMUR_DEBUG_PAD"] != nil {
+                    print("pad \(url.lastPathComponent) +\(expected - written) at \(written)")
+                }
+                write([Float](repeating: 0, count: expected - written))
+            }
+            write(samples)
+        }
+    }
+
+    private func write(_ samples: [Float]) {
+        do {
             guard let file, let buffer = AVAudioPCMBuffer(
                 pcmFormat: AudioSpec.format, frameCapacity: AVAudioFrameCount(samples.count))
             else { return }
