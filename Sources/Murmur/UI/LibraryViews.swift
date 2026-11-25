@@ -20,7 +20,10 @@ struct DictationsView: View {
                 List {
                     ForEach(items) { d in
                         DictationRow(dictation: d)
+                            .depthOfField()
                             .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets(top: Space.s, leading: Space.gutter, bottom: Space.s, trailing: Space.gutter))
                             .swipeActions {
                                 Button(role: .destructive) {
                                     model.dictations.delete(d.id)
@@ -30,10 +33,12 @@ struct DictationsView: View {
                             }
                     }
                 }
-                .listStyle(.inset)
+                .listStyle(.plain)
                 .scrollContentBackground(.hidden)
+                .scrollEdgeEffectStyle(.soft, for: .all)
             }
         }
+        .background { AmbientBackdrop(tint: .teal) }
         .navigationTitle("Dictation")
         .searchable(text: $query, placement: .toolbar)
         .toolbar {
@@ -52,7 +57,7 @@ struct DictationRow: View {
     @State private var copied = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .center, spacing: Space.l) {
             VStack(alignment: .leading, spacing: 6) {
                 Text(dictation.text)
                     .font(.system(size: 15))
@@ -86,8 +91,10 @@ struct DictationRow: View {
             .buttonBorderShape(.circle)
             .help("Copy")
         }
-        .padding(16)
-        .background(.background.secondary, in: .rect(cornerRadius: 18))
+        .padding(.vertical, Space.l)
+        .padding(.leading, Space.l + 4)
+        .padding(.trailing, Space.m)
+        .surface(radius: Radius.tile, elevation: 0.5)
     }
 }
 
@@ -98,10 +105,10 @@ struct VoicesView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: Space.xl) {
                 Card {
-                    HStack(alignment: .top, spacing: 14) {
-                        Image(systemName: "person.wave.2.fill").font(.title).foregroundStyle(Color.accentColor)
+                    HStack(alignment: .center, spacing: Space.l) {
+                        IconBadge(symbol: "person.wave.2.fill", tint: .accentColor)
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Voice prints stay on this Mac").font(.headline)
                             Text("Name a speaker once in any transcript and Murmur recognises them in every meeting after — and in older ones too. Your own voice is learned quietly from your dictations.")
@@ -116,17 +123,18 @@ struct VoicesView: View {
                         "No voices yet", systemImage: "person.crop.circle.badge.questionmark",
                         description: Text("Tap a speaker in a meeting transcript to name them."))
                 } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 14)], spacing: 14) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 230), spacing: Space.l)], spacing: Space.l) {
                         ForEach(model.voices.prints.sorted { ($0.isMe ? 0 : 1, $0.name) < ($1.isMe ? 0 : 1, $1.name) }) { p in
                             voiceCard(p)
                         }
                     }
                 }
             }
-            .padding(28)
-            .frame(maxWidth: 980)
-            .frame(maxWidth: .infinity)
+            .padding(.vertical, Space.xl)
+            .pageColumn(maxWidth: 980)
         }
+        .scrollEdgeEffectStyle(.soft, for: .top)
+        .background { AmbientBackdrop(tint: .indigo) }
         .navigationTitle("Voices")
         .alert("Rename voice", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
             TextField("Name", text: $newName)
@@ -177,8 +185,8 @@ struct VoicesView: View {
                 .tint(Theme.color(p.colorIndex))
                 .help("Recognition gets more reliable with more samples")
         }
-        .padding(18)
-        .background(.background.secondary, in: .rect(cornerRadius: 22))
+        .padding(Space.xl)
+        .surface(radius: Radius.card, elevation: 0.7)
     }
 
     private func renameInMeetings(_ id: UUID, to name: String) {

@@ -68,14 +68,16 @@ struct MeetingDetailView: View {
     private func transcript(_ meeting: Meeting) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 20, pinnedViews: []) {
+                LazyVStack(alignment: .leading, spacing: Space.s, pinnedViews: []) {
                     TextField("Title", text: $title)
                         .font(.system(size: 28, weight: .bold, design: .rounded))
                         .textFieldStyle(.plain)
                         .onSubmit { model.meetings.update(meetingID) { $0.title = title } }
 
                     SpeakerStrip(meeting: meeting) { assigning = $0 }
+                        .padding(.bottom, Space.s)
                     SummaryCard(meeting: meeting)
+                        .padding(.bottom, Space.l)
 
                     if meeting.segments.isEmpty {
                         ContentUnavailableView(
@@ -84,14 +86,16 @@ struct MeetingDetailView: View {
                     }
                     ForEach(visibleSegments(meeting)) { seg in
                         SegmentRow(meeting: meeting, segment: seg) { s in assigning = s }
+                            .padding(.horizontal, -Space.m)
+                            .depthOfField()
                             .id(seg.id)
                     }
                 }
-                .padding(.horizontal, 32)
-                .padding(.vertical, 24)
-                .frame(maxWidth: 880, alignment: .leading)
-                .frame(maxWidth: .infinity)
+                .padding(.vertical, Space.xl)
+                .pageColumn()
             }
+            .scrollEdgeEffectStyle(.soft, for: .all)
+            .background { AmbientBackdrop(tint: meeting.speakers.first?.color(voices: model.voices.prints) ?? .accentColor) }
             .searchable(text: $filter, placement: .toolbar, prompt: "Find in transcript")
             .onChange(of: model.player.currentTime) {
                 guard model.player.isPlaying, model.player.meetingID == meetingID,
@@ -154,21 +158,26 @@ struct SpeakerStrip: View {
     let meeting: Meeting
     var onSelect: (Speaker) -> Void
 
+    /// Chip geometry: 48 pt capsule, 36 pt avatar, 6 pt inset, so the avatar's circle is
+    /// concentric with the capsule's rounded end.
+    private let chipHeight: CGFloat = 48
+    private let avatar: CGFloat = 36
+
     var body: some View {
         let total = max(1, meeting.speakers.map(\.talkTime).reduce(0, +))
+        let inset = (chipHeight - avatar) / 2
         ScrollView(.horizontal, showsIndicators: false) {
-            GlassEffectContainer(spacing: 10) {
-                HStack(spacing: 10) {
+            GlassEffectContainer(spacing: Space.m) {
+                HStack(spacing: Space.s + 2) {
                     ForEach(meeting.speakers) { s in
+                        let color = s.color(voices: model.voices.prints)
                         Button {
                             onSelect(s)
                         } label: {
-                            HStack(spacing: 10) {
-                                Avatar(
-                                    name: s.displayName, color: s.color(voices: model.voices.prints), size: 32,
-                                    dashed: s.name == nil)
+                            HStack(spacing: Space.s + 2) {
+                                Avatar(name: s.displayName, color: color, size: avatar, dashed: s.name == nil)
                                 VStack(alignment: .leading, spacing: 1) {
-                                    HStack(spacing: 4) {
+                                    HStack(spacing: Space.xs) {
                                         Text(s.displayName).font(.callout.weight(.semibold))
                                         if s.name != nil, !s.isConfirmed {
                                             Image(systemName: "sparkles").font(.caption2).foregroundStyle(.secondary)
@@ -176,16 +185,19 @@ struct SpeakerStrip: View {
                                         }
                                     }
                                     Text("\(Int(s.talkTime / total * 100))% · \(s.track == .mic ? "mic" : "call")")
-                                        .font(.caption).foregroundStyle(.secondary)
+                                        .font(.caption).foregroundStyle(.secondary).monospacedDigit()
                                 }
                             }
-                            .padding(.leading, 6)
-                            .padding(.trailing, 12)
-                            .frame(minHeight: Theme.touchTarget)
+                            .padding(.leading, inset)
+                            .padding(.trailing, Space.l + 2)
+                            .frame(height: chipHeight)
+                            .contentShape(.capsule)
                         }
-                        .buttonStyle(.glass)
+                        .buttonStyle(.plain)
+                        .glassEffect(.regular.tint(color.opacity(s.name == nil ? 0 : 0.08)).interactive(), in: .capsule)
                     }
                 }
+                .padding(.vertical, Space.xs)
             }
         }
         .scrollClipDisabled()
@@ -198,51 +210,76 @@ struct SegmentRow: View {
     let segment: TranscriptSegment
     var onAssign: (Speaker) -> Void
 
+    private let avatarSize: CGFloat = 36
+
     var body: some View {
         let speaker = meeting.speaker(segment.speakerID)
-        let active =
-            model.player.meetingID == meeting.id && model.player.isPlaying
-            && (segment.start...segment.end).contains(model.player.currentTime)
-        HStack(alignment: .top, spacing: 14) {
+        let color = speaker?.color(voices: model.voices.prints) ?? .gray
+        let playingHere = model.player.meetingID == meeting.id && model.player.isPlaying
+        let active = playingHere && (segment.start...segment.end).contains(model.player.currentTime)
+        HStack(alignment: .firstTextBaseline, spacing: Space.m + 2) {
             Button {
                 if let speaker { onAssign(speaker) }
             } label: {
-                Avatar(
-                    name: speaker?.displayName ?? "?", color: speaker?.color(voices: model.voices.prints) ?? .gray,
-                    size: 38, dashed: speaker?.name == nil)
+                Avatar(name: speaker?.displayName ?? "?", color: color, size: avatarSize, dashed: speaker?.name == nil)
+                    .frame(width: avatarSize, height: Theme.touchTarget)
+                    .contentShape(.rect)
             }
             .buttonStyle(.plain)
-            .frame(width: Theme.touchTarget, height: Theme.touchTarget)
+            // Centre the avatar on the name line rather than the paragraph's top edge.
+            .alignmentGuide(.firstTextBaseline) { d in d[VerticalAlignment.center] + 5 }
 
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: Space.xs + 2) {
+                HStack(alignment: .firstTextBaseline, spacing: Space.s) {
                     Button {
                         if let speaker { onAssign(speaker) }
                     } label: {
                         Text(speaker?.displayName ?? "Unknown").font(.callout.weight(.semibold))
-                            .foregroundStyle(speaker?.color(voices: model.voices.prints) ?? .secondary)
+                            .foregroundStyle(color)
                     }
                     .buttonStyle(.plain)
                     Button {
                         model.player.play(meeting: meeting.id, from: segment.start)
                     } label: {
-                        Text(segment.start.clock).font(.caption.monospacedDigit())
-                            .padding(.horizontal, 8).padding(.vertical, 3)
-                            .background(.quaternary, in: .capsule)
+                        Label(segment.start.clock, systemImage: "play.fill")
+                            .labelStyle(TimestampLabelStyle())
                     }
                     .buttonStyle(.plain)
                     .help("Play from here")
                 }
                 Text(segment.text)
                     .font(.system(size: 15.5))
-                    .lineSpacing(3)
+                    .lineSpacing(3.5)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            Spacer(minLength: 0)
         }
-        .padding(10)
-        .background(active ? Color.accentColor.opacity(0.1) : .clear, in: .rect(cornerRadius: 14))
-        .animation(.smooth, value: active)
+        .padding(.vertical, Space.m)
+        .padding(.horizontal, Space.m)
+        .background {
+            RoundedRectangle(cornerRadius: Radius.row, style: .continuous)
+                .fill(color.opacity(active ? 0.12 : 0))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Radius.row, style: .continuous)
+                        .strokeBorder(color.opacity(active ? 0.25 : 0), lineWidth: 0.75)
+                }
+        }
+        .focus(active, dimmed: playingHere)
+    }
+}
+
+/// Small capsule timestamp with a play glyph that appears on hover/press.
+struct TimestampLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 3) {
+            configuration.icon.font(.system(size: 7, weight: .bold))
+            configuration.title.font(.caption.monospacedDigit())
+        }
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, Space.s)
+        .padding(.vertical, 3)
+        .background(.quaternary.opacity(0.6), in: .capsule)
     }
 }
 
@@ -399,11 +436,13 @@ struct SummaryCard: View {
                     Text("Writing notes with Apple Intelligence, on device…").foregroundStyle(.secondary)
                 }
             }
-            .padding(18)
-            .background(
-                LinearGradient(colors: [.purple.opacity(0.10), .blue.opacity(0.06)], startPoint: .topLeading,
-                               endPoint: .bottomTrailing),
-                in: .rect(cornerRadius: 20))
+            .padding(Space.xl)
+            .background {
+                LinearGradient(colors: [.purple.opacity(0.10), .blue.opacity(0.05), .clear], startPoint: .topLeading,
+                               endPoint: .bottomTrailing)
+                    .clipShape(.rect(cornerRadius: Radius.card, style: .continuous))
+            }
+            .surface(radius: Radius.card, elevation: 0.7)
         }
     }
 }
@@ -415,7 +454,7 @@ struct PlayerBar: View {
     var body: some View {
         let player = model.player
         let mine = player.meetingID == meetingID
-        HStack(spacing: 14) {
+        HStack(spacing: Space.m) {
             Button {
                 player.toggle(meeting: meetingID)
             } label: {
@@ -434,11 +473,13 @@ struct PlayerBar: View {
                 in: 0...max(1, mine ? player.duration : (model.meetings.meeting(meetingID)?.duration ?? 1)))
             Text((model.meetings.meeting(meetingID)?.duration ?? 0).clock).monospacedDigit().foregroundStyle(.secondary)
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 8)
+        .padding(.leading, 6)
+        .padding(.trailing, Space.xl)
+        .frame(height: 52)
         .glassEffect(.regular, in: .capsule)
-        .padding(.horizontal, 24)
-        .padding(.bottom, 14)
+        .shadow(color: .black.opacity(0.10), radius: 16, y: 8)
+        .padding(.horizontal, Space.xl)
+        .padding(.bottom, Space.l)
         .frame(maxWidth: 760)
     }
 }

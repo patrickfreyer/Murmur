@@ -93,7 +93,7 @@ struct HUDView: View {
             switch state {
             case .listening(let handsFree):
                 if let icon = model.dictation.targetAppIcon {
-                    Image(nsImage: icon).resizable().frame(width: 22, height: 22)
+                    Image(nsImage: icon).resizable().frame(width: iconSize, height: iconSize)
                 }
                 Waveform(levels: model.dictation.levels)
                     .frame(width: handsFree ? 120 : 150, height: 26)
@@ -105,11 +105,12 @@ struct HUDView: View {
                         model.dictation.finish()
                     } label: {
                         Image(systemName: "stop.fill").font(.system(size: 13, weight: .bold))
-                            .frame(width: 30, height: 30)
+                            .foregroundStyle(.white)
+                            .frame(width: stopSize, height: stopSize)
+                            .background(Color.red.gradient, in: .circle)
+                            .shadow(color: .red.opacity(0.4), radius: 4, y: 2)
                     }
-                    .buttonStyle(.glassProminent)
-                    .buttonBorderShape(.circle)
-                    .tint(.red)
+                    .buttonStyle(.plain)
                 }
             case .transcribing:
                 ProgressView().controlSize(.small)
@@ -124,10 +125,28 @@ struct HUDView: View {
                 EmptyView()
             }
         }
-        .padding(.horizontal, 16)
-        .frame(height: 52)
+        // Concentric insets: a circle of diameter d sits (height − d) / 2 from the capsule's end.
+        .padding(.leading, leadingInset(state))
+        .padding(.trailing, trailingInset(state))
+        .frame(height: pillHeight)
         .glassEffect(.regular, in: .capsule)
-        .padding(.bottom, 8)
+        .shadow(color: .black.opacity(0.18), radius: 18, y: 10)
+        .shadow(color: .black.opacity(0.08), radius: 1.5, y: 1)
+        .padding(.bottom, 14)
+    }
+
+    private let pillHeight: CGFloat = 52
+    private let iconSize: CGFloat = 28
+    private let stopSize: CGFloat = 36
+
+    private func leadingInset(_ state: DictationController.State) -> CGFloat {
+        if case .listening = state, model.dictation.targetAppIcon != nil { return (pillHeight - iconSize) / 2 }
+        return 18
+    }
+
+    private func trailingInset(_ state: DictationController.State) -> CGFloat {
+        if case .listening(true) = state { return (pillHeight - stopSize) / 2 }
+        return 20
     }
 
     private var elapsed: String {
