@@ -3,7 +3,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" Resources/Info.plist)
-Scripts/build-app.sh release
+# Public builds are ad-hoc signed: a personal development certificate adds no trust for other
+# Macs (they still need "Open Anyway" until the app is notarized) and would embed your identity.
+MURMUR_SIGN_IDENTITY=- Scripts/build-app.sh release
 mkdir -p dist
 ZIP="dist/Murmur-$VERSION.zip"
 rm -f "$ZIP"
