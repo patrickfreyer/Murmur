@@ -31,7 +31,6 @@ private struct GeneralSettings: View {
                 LabeledContent("Hands-free", value: "Double-tap fn, tap again to finish")
                 LabeledContent("Cancel", value: "Esc")
                 Toggle("Stop fn from opening emoji / Apple dictation", isOn: $model.suppressGlobeAction)
-                Toggle("Floating mic button (for touch)", isOn: $model.showBubble)
             }
             Section {
                 Toggle("Open at login", isOn: $model.launchAtLogin)

@@ -6,7 +6,7 @@ A lightweight, native macOS dictation and meeting transcriber. Everything runs o
 - **Meeting transcription**: records your mic and the call audio (Zoom, Meet, Teams…) through a Core Audio process tap, shows a live transcript, then does a full on-device pass with speaker diarization.
 - **Local voice prints**: name a speaker once and Murmur recognises that voice in future meetings, and relabels older ones too. Your own voice is learned from your dictations.
 - **Summaries**: optional meeting notes from Apple Intelligence's on-device model.
-- **Touch-friendly**: 44 pt targets, Liquid Glass controls, and a floating mic button for dictating from the touch screen.
+- **Touch-friendly**: 44 pt targets, Liquid Glass controls.
 
 ## Stack
 

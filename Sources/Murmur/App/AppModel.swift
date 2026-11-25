@@ -27,7 +27,6 @@ final class AppModel {
     let player = TranscriptPlayer()
     @ObservationIgnored let fnMonitor = FnKeyMonitor()
     @ObservationIgnored private var hud: HUDController?
-    @ObservationIgnored private var bubble: BubbleController?
 
     var selection: SidebarItem? = .home
     var modelStatus: ModelStatus = .idle
@@ -65,9 +64,6 @@ final class AppModel {
     }
     var autoSummarize: Bool = Defaults.bool("autoSummarize", true) {
         didSet { Defaults.set(autoSummarize, "autoSummarize") }
-    }
-    var showBubble: Bool = Defaults.bool("showBubble", true) {
-        didSet { Defaults.set(showBubble, "showBubble"); bubble?.setVisible(showBubble) }
     }
     var matchThreshold: Double = Defaults.double("matchThreshold", 0.65) {
         didSet { Defaults.set(matchThreshold, "matchThreshold") }
@@ -109,8 +105,6 @@ final class AppModel {
         dictation.prewarm()
 
         hud = HUDController(model: self)
-        bubble = BubbleController(model: self)
-        bubble?.setVisible(showBubble)
 
         fnMonitor.suppressSystemFnAction = suppressGlobeAction
         fnMonitor.isCapturingEscape = { [weak self] in
