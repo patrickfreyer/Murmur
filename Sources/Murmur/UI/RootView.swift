@@ -48,8 +48,9 @@ struct Sidebar: View {
         List(selection: $model.selection) {
             Section {
                 RecordButton()
-                    .listRowInsets(EdgeInsets(top: 4, leading: 6, bottom: 10, trailing: 6))
+                    .padding(.vertical, Space.xs)
                     .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
                     .selectionDisabled()
             }
 
@@ -199,27 +200,61 @@ struct RecordButton: View {
         Button {
             model.toggleMeeting()
         } label: {
-            HStack(spacing: 10) {
+            HStack(spacing: Space.s) {
+                // Same 20 pt icon column as the sidebar's Labels, so the glyphs line up vertically.
                 Image(systemName: recording ? "stop.fill" : "record.circle")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(size: 14, weight: .semibold))
                     .symbolEffect(.pulse, isActive: recording)
+                    .frame(width: 20)
                 if recording, let start = model.recorder.startedAt {
                     Text(timerInterval: start...Date.distantFuture, countsDown: false)
                         .monospacedDigit()
-                    Spacer()
-                    Text("Stop").fontWeight(.semibold)
+                    Spacer(minLength: 0)
+                    Text("Stop")
                 } else {
-                    Text("Record Meeting").fontWeight(.semibold)
-                    Spacer()
-                    Text("⇧⌘R").font(.caption).foregroundStyle(.white.opacity(0.7))
+                    Text("Record Meeting")
+                    Spacer(minLength: 0)
+                    Text("⇧⌘R").font(.caption.weight(.medium)).opacity(0.65)
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 34)
-            .padding(.horizontal, 4)
+            .font(.body.weight(.semibold))
         }
-        .buttonStyle(.glassProminent)
-        .tint(recording ? .red : .accentColor)
-        .controlSize(.large)
+        .buttonStyle(SidebarActionButtonStyle(tint: recording ? .red : .accentColor))
         .disabled(model.recorder.state == .finishing)
+    }
+}
+
+/// A filled button shaped exactly like a selected sidebar row (same height, radius and insets),
+/// with the subtle top highlight and contact shadow of a macOS default push button.
+struct SidebarActionButtonStyle: ButtonStyle {
+    var tint: Color
+    /// Sidebar selection highlights sit this far outside the row's content.
+    static let bleed: CGFloat = 8
+    static let radius: CGFloat = 8
+
+    func makeBody(configuration: Configuration) -> some View {
+        let shape = RoundedRectangle(cornerRadius: Self.radius, style: .continuous)
+        configuration.label
+            .foregroundStyle(.white)
+            .padding(.horizontal, Self.bleed)
+            .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
+            .background {
+                shape.fill(tint.gradient)
+                    .overlay {
+                        shape.fill(LinearGradient(colors: [.white.opacity(0.18), .clear], startPoint: .top,
+                                                  endPoint: .center))
+                    }
+                    .overlay { shape.strokeBorder(.black.opacity(0.12), lineWidth: 0.5) }
+                    .overlay(alignment: .top) {
+                        shape.inset(by: 0.5).trim(from: 0, to: 1).stroke(.white.opacity(0.25), lineWidth: 0.5)
+                            .mask(LinearGradient(colors: [.white, .clear], startPoint: .top, endPoint: .center))
+                    }
+                    .brightness(configuration.isPressed ? -0.08 : 0)
+            }
+            .shadow(color: tint.opacity(0.35), radius: 3, y: 1.5)
+            .padding(.horizontal, -Self.bleed)
+            .contentShape(shape)
+            .scaleEffect(configuration.isPressed ? 0.985 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }

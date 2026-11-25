@@ -154,12 +154,15 @@ public struct Dictation: Codable, Sendable, Identifiable, Hashable {
     public var createdAt: Date
     public var duration: TimeInterval
     public var appName: String?
+    /// Bundle identifier of the app the text went into (for its icon). nil on older entries.
+    public var appBundleID: String?
     public var processingTime: TimeInterval
 
     public init(
         id: UUID = UUID(), text: String, createdAt: Date = .now, duration: TimeInterval, appName: String?,
-        processingTime: TimeInterval
+        appBundleID: String? = nil, processingTime: TimeInterval
     ) {
+        self.appBundleID = appBundleID
         self.id = id
         self.text = text
         self.createdAt = createdAt

@@ -58,7 +58,7 @@ struct HomeView: View {
                 .padding(.top, Space.s)
             }
             Spacer(minLength: 0)
-            FnKeycap(active: model.dictation.state != .idle)
+            KeyboardCluster(fnActive: model.dictation.state != .idle)
         }
         .padding(Space.xxl)
         .background {
@@ -100,38 +100,126 @@ struct HomeView: View {
             SectionHeader(title: "Recent dictations") {
                 Button("Show all") { model.selection = .dictations }.buttonStyle(.borderless)
             }
-            ForEach(model.dictations.items.prefix(4)) { d in
-                DictationRow(dictation: d)
-            }
+            DictationTimeline(items: Array(model.dictations.items.prefix(4)), compact: true)
         }
     }
 }
 
-struct FnKeycap: View {
-    var active: Bool
+/// A slice of a MacBook keyboard (bottom-left corner) with a physically modelled fn key.
+struct KeyboardCluster: View {
+    var fnActive: Bool
+    @Environment(\.colorScheme) private var scheme
+
+    private let key: CGFloat = 58
+    private let gap: CGFloat = 7
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 24, style: .continuous)
-        ZStack(alignment: .topLeading) {
-            shape.fill(.background)
-            // Key top: a slight gradient reads as a physical, convex cap.
-            shape.fill(LinearGradient(colors: [.white.opacity(0.10), .black.opacity(0.06)],
-                                      startPoint: .top, endPoint: .bottom))
-            shape.strokeBorder(.white.opacity(0.18), lineWidth: 0.75)
-            VStack(alignment: .leading) {
-                Image(systemName: "globe").font(.system(size: 24, weight: .regular))
-                Spacer()
-                Text("fn").font(.system(size: 30, weight: .medium, design: .rounded))
+        let deck = RoundedRectangle(cornerRadius: 22, style: .continuous)
+        VStack(alignment: .leading, spacing: gap) {
+            HStack(spacing: gap) {
+                KeyCap(width: key * 2.25, height: key, active: false) {
+                    KeyLegend(bottomLeft: Text("shift"), topLeft: Text("⇧"))
+                }
             }
-            .padding(Space.l + 2)
-            .foregroundStyle(active ? Color.accentColor : .primary)
+            HStack(alignment: .bottom, spacing: gap) {
+                KeyCap(width: key, height: key, active: fnActive, glow: true) {
+                    KeyLegend(bottomLeft: Text(Image(systemName: "globe")), topRight: Text("fn"))
+                }
+                KeyCap(width: key, height: key, active: false) {
+                    KeyLegend(bottomLeft: Text("control"), topRight: Text("⌃"))
+                }
+                KeyCap(width: key, height: key, active: false) {
+                    KeyLegend(bottomLeft: Text("option"), topRight: Text("⌥"))
+                }
+                KeyCap(width: key * 1.3, height: key, active: false) {
+                    KeyLegend(bottomLeft: Text("command"), topRight: Text("⌘"))
+                }
+            }
         }
-        .frame(width: 116, height: 116)
-        .shadow(color: .black.opacity(active ? 0.10 : 0.22), radius: active ? 3 : 14, y: active ? 2 : 9)
-        .shadow(color: .black.opacity(0.08), radius: 1, y: 1)
-        .scaleEffect(active ? 0.95 : 1)
-        .offset(y: active ? 3 : 0)
-        .animation(.spring(response: 0.22, dampingFraction: 0.62), value: active)
+        .padding(14)
+        .background {
+            // Anodised deck: space black in dark mode, silver in light mode.
+            deck.fill(LinearGradient(
+                colors: scheme == .dark
+                    ? [Color(white: 0.17), Color(white: 0.12)]
+                    : [Color(white: 0.86), Color(white: 0.78)],
+                startPoint: .top, endPoint: .bottom))
+                .overlay { deck.strokeBorder(.white.opacity(scheme == .dark ? 0.08 : 0.5), lineWidth: 0.75) }
+                .shadow(color: .black.opacity(0.18), radius: 14, y: 8)
+        }
+        // A window onto the keyboard's bottom-left corner: the deck is cropped at the top and right
+        // (full-size keys run past the edge) and fades out, as if the keyboard continues.
+        .frame(width: 236, height: 136, alignment: .bottomLeading)
+        .clipShape(UnevenRoundedRectangle(cornerRadii: .init(topLeading: 0, bottomLeading: 22, bottomTrailing: 0,
+                                                             topTrailing: 0), style: .continuous))
+        .mask {
+            LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.6),
+                                   .init(color: .clear, location: 1)], startPoint: .leading, endPoint: .trailing)
+        }
+        .mask {
+            LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.35),
+                                   .init(color: .black, location: 1)], startPoint: .top, endPoint: .bottom)
+        }
+        .accessibilityLabel("fn key")
+    }
+}
+
+struct KeyLegend: View {
+    var bottomLeft: Text? = nil
+    var topLeft: Text? = nil
+    var topRight: Text? = nil
+
+    var body: some View {
+        ZStack {
+            if let topLeft { topLeft.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading) }
+            if let topRight { topRight.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing) }
+            if let bottomLeft { bottomLeft.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading) }
+        }
+        .font(.system(size: 10.5, weight: .regular))
+        .foregroundStyle(Color(white: 0.84))
+        .padding(.horizontal, 7)
+        .padding(.vertical, 6)
+    }
+}
+
+/// One keycap: recessed well, dark skirt and a slightly domed cap that travels down when pressed.
+struct KeyCap<Legend: View>: View {
+    var width: CGFloat
+    var height: CGFloat
+    var active: Bool
+    var glow = false
+    @ViewBuilder var legend: Legend
+
+    private let travel: CGFloat = 2
+
+    var body: some View {
+        let r: CGFloat = 7
+        let cap = RoundedRectangle(cornerRadius: r, style: .continuous)
+        ZStack(alignment: .top) {
+            // Well around the key.
+            RoundedRectangle(cornerRadius: r + 1.5, style: .continuous)
+                .fill(.black.opacity(0.55))
+                .padding(-1.5)
+            // Skirt: the visible side of the cap below its top face.
+            cap.fill(Color(white: 0.04)).offset(y: travel)
+            // Cap top.
+            cap.fill(LinearGradient(colors: [Color(white: active ? 0.20 : 0.235), Color(white: active ? 0.15 : 0.17)],
+                                    startPoint: .top, endPoint: .bottom))
+                .overlay {
+                    cap.strokeBorder(LinearGradient(colors: [.white.opacity(0.16), .white.opacity(0.02)],
+                                                    startPoint: .top, endPoint: .bottom), lineWidth: 0.75)
+                }
+                .overlay { legend }
+                .overlay {
+                    if glow {
+                        cap.strokeBorder(Color.accentColor.opacity(active ? 0.9 : 0), lineWidth: 1.5)
+                            .shadow(color: Color.accentColor.opacity(active ? 0.9 : 0), radius: 8)
+                    }
+                }
+                .offset(y: active ? travel : 0)
+        }
+        .frame(width: width, height: height + travel, alignment: .top)
+        .animation(.spring(response: 0.18, dampingFraction: 0.7), value: active)
     }
 }
 

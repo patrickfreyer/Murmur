@@ -140,6 +140,15 @@ struct Avatar: View {
     var dashed = false
 
     var body: some View {
+        if dashed {
+            initialsAvatar
+        } else {
+            // Known people get a face; anonymous speakers keep the dashed outline.
+            FaceAvatar(name: name, color: color, size: size)
+        }
+    }
+
+    private var initialsAvatar: some View {
         ZStack {
             if dashed {
                 Circle().fill(color.opacity(0.14))

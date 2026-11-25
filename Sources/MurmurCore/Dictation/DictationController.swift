@@ -39,6 +39,7 @@ public final class DictationController {
     public private(set) var startedAt: Date?
     public private(set) var targetAppName: String?
     public private(set) var targetAppIcon: NSImage?
+    public private(set) var targetBundleID: String?
 
     public var model: ASRModelChoice = .ultra
     public var learnMyVoice = true
@@ -133,6 +134,7 @@ public final class DictationController {
         let front = NSWorkspace.shared.frontmostApplication
         targetAppName = front?.localizedName
         targetAppIcon = front?.icon
+        targetBundleID = front?.bundleIdentifier
         _ = buffer.take()
         meter.reset()
         do {
@@ -198,7 +200,8 @@ public final class DictationController {
             log.info("Dictated \(duration, format: .fixed(precision: 1))s in \(elapsed, format: .fixed(precision: 2))s")
             onDictation?(
                 Dictation(
-                    text: result.text, duration: duration, appName: targetAppName, processingTime: elapsed))
+                    text: result.text, duration: duration, appName: targetAppName, appBundleID: targetBundleID,
+                    processingTime: elapsed))
             state = .inserted(result.text)
             learnVoice(from: samples, duration: duration)
             try? await Task.sleep(for: .milliseconds(900))
