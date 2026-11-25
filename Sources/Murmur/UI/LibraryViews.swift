@@ -269,7 +269,7 @@ struct VoicesView: View {
                         "No voices yet", systemImage: "person.crop.circle.badge.questionmark",
                         description: Text("Tap a speaker in a meeting transcript to name them."))
                 } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 230), spacing: Space.l)], spacing: Space.l) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: Space.l)], spacing: Space.l) {
                         ForEach(model.voices.prints.sorted { ($0.isMe ? 0 : 1, $0.name) < ($1.isMe ? 0 : 1, $1.name) }) { p in
                             voiceCard(p)
                         }

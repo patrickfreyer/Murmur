@@ -23,6 +23,8 @@ struct RootView: View {
         switch model.selection ?? .home {
         case .home:
             HomeView()
+        case .meetings:
+            MeetingsView()
         case .dictations:
             DictationsView()
         case .voices:
@@ -47,6 +49,8 @@ struct Sidebar: View {
         @Bindable var model = model
         List(selection: $model.selection) {
             Section {
+                // The app's own header doubles as Home, like a Finder favourite: icon, name, live status.
+                SidebarHeader().tag(SidebarItem.home)
                 RecordButton()
                     .padding(.vertical, Space.xs)
                     .listRowSeparator(.hidden)
@@ -55,30 +59,14 @@ struct Sidebar: View {
             }
 
             Section {
-                Label("Home", systemImage: "house").tag(SidebarItem.home)
-                    .frame(minHeight: 30)
-                Label {
-                    HStack {
-                        Text("Dictation")
-                        Spacer()
-                        Text("\(model.dictations.items.count)").foregroundStyle(.secondary).monospacedDigit()
-                    }
-                } icon: {
-                    Image(systemName: "text.bubble")
-                }
-                .tag(SidebarItem.dictations)
-                .frame(minHeight: 30)
-                Label {
-                    HStack {
-                        Text("Voices")
-                        Spacer()
-                        Text("\(model.voices.prints.count)").foregroundStyle(.secondary).monospacedDigit()
-                    }
-                } icon: {
-                    Image(systemName: "person.wave.2")
-                }
-                .tag(SidebarItem.voices)
-                .frame(minHeight: 30)
+                // Same horizontal bleed as the Record button and the selection highlight, so all
+                // three share one left and right edge.
+                StatTiles()
+                    .padding(.horizontal, -SidebarActionButtonStyle.bleed)
+                    .padding(.bottom, Space.xs)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .selectionDisabled()
             }
 
             ForEach(groups, id: \.title) { group in
@@ -356,5 +344,138 @@ struct SidebarActionButtonStyle: ButtonStyle {
             .contentShape(shape)
             .scaleEffect(configuration.isPressed ? 0.985 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+/// Reminders-style summary tiles at the top of the sidebar: each one is a live count and a way in.
+struct StatTiles: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let columns = [GridItem(.flexible(), spacing: Space.s), GridItem(.flexible(), spacing: Space.s)]
+        LazyVGrid(columns: columns, spacing: Space.s) {
+            StatTileButton(title: "Meetings", value: "\(model.meetings.meetings.count)", symbol: "person.2.wave.2.fill",
+                           tint: .orange, target: .meetings)
+            StatTileButton(title: "Words", value: compact(model.dictations.totalWords), symbol: "text.bubble.fill",
+                           tint: .blue, target: .dictations)
+            StatTileButton(title: "Voices", value: "\(model.voices.prints.count)", symbol: "person.wave.2.fill",
+                           tint: .purple, target: .voices)
+            StatTileButton(title: "Avg. speed", value: averageLatency, symbol: "bolt.fill",
+                           tint: .green, target: .dictations)
+        }
+    }
+
+    private var averageLatency: String {
+        let recent = model.dictations.items.prefix(20)
+        guard !recent.isEmpty else { return "–" }
+        return "\(Int(recent.map(\.processingTime).reduce(0, +) / Double(recent.count) * 1000))ms"
+    }
+
+    private func compact(_ n: Int) -> String {
+        n >= 10_000 ? String(format: "%.0fk", Double(n) / 1000) : n >= 1000 ? String(format: "%.1fk", Double(n) / 1000) : "\(n)"
+    }
+}
+
+struct StatTileButton: View {
+    @Environment(AppModel.self) private var model
+    var title: String
+    var value: String
+    var symbol: String
+    var tint: Color
+    var target: SidebarItem
+    @State private var hovering = false
+
+    var body: some View {
+        let selected = model.selection == target && title != "Avg. speed"
+        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+        Button {
+            model.selection = target
+        } label: {
+            VStack(alignment: .leading, spacing: Space.s - 2) {
+                HStack(alignment: .top) {
+                    Image(systemName: symbol)
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 26, height: 26)
+                        .background(Circle().fill(selected ? AnyShapeStyle(.white.opacity(0.28)) : AnyShapeStyle(tint.gradient)))
+                        .shadow(color: tint.opacity(selected ? 0 : 0.35), radius: 3, y: 1)
+                    Spacer(minLength: 0)
+                    Text(value)
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .contentTransition(.numericText())
+                        .foregroundStyle(selected ? .white : .primary)
+                }
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(selected ? .white.opacity(0.9) : .secondary)
+            }
+            .padding(Space.s + 2)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                shape.fill(selected ? AnyShapeStyle(tint.gradient) : AnyShapeStyle(.primary.opacity(hovering ? 0.09 : 0.055)))
+                    .overlay { shape.strokeBorder(.primary.opacity(selected ? 0 : 0.06), lineWidth: 0.5) }
+            }
+            .contentShape(shape)
+        }
+        .buttonStyle(PressScaleStyle(scale: 0.96))
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.15), value: hovering)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: selected)
+    }
+}
+
+struct SidebarHeader: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        HStack(spacing: Space.s + 2) {
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 30, height: 30)
+                .shadow(color: .black.opacity(0.2), radius: 2, y: 1)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Murmur").font(.system(size: 14, weight: .semibold))
+                HStack(spacing: 5) {
+                    Circle().fill(statusColor).frame(width: 6, height: 6)
+                        .shadow(color: statusColor.opacity(0.7), radius: 2)
+                    Text(status).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+                        .contentTransition(.opacity)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, Space.xs)
+        .help("Home")
+        .animation(.easeOut(duration: 0.2), value: status)
+    }
+
+    private var status: String {
+        if model.recorder.isRecording { return "Recording a meeting" }
+        switch model.dictation.state {
+        case .listening(true): return "Dictating · locked"
+        case .listening: return "Listening…"
+        case .transcribing: return "Transcribing…"
+        default: break
+        }
+        switch model.modelStatus {
+        case .loading(_, let f): return "Loading model \(Int(f * 100))%"
+        case .failed: return "Speech model unavailable"
+        default: break
+        }
+        if !model.fnMonitorRunning { return "Needs Accessibility" }
+        return "Hold fn to dictate"
+    }
+
+    private var statusColor: Color {
+        if model.recorder.isRecording { return .red }
+        if case .listening = model.dictation.state { return .accentColor }
+        if case .failed = model.modelStatus { return .orange }
+        if !model.fnMonitorRunning { return .orange }
+        if case .ready = model.modelStatus { return .green }
+        return .yellow
     }
 }

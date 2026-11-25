@@ -8,6 +8,7 @@ import SwiftUI
 
 enum SidebarItem: Hashable {
     case home
+    case meetings
     case dictations
     case voices
     case meeting(UUID)

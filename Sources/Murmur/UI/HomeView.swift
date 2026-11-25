@@ -11,7 +11,6 @@ struct HomeView: View {
                 hero
                 if needsSetup { SetupCard() }
                 ModelStatusCard()
-                stats
                 if !model.dictations.items.isEmpty { recentDictations }
             }
             .padding(.vertical, Space.xl)
@@ -32,7 +31,7 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: Space.m) {
                 Text("Hold \(Image(systemName: "globe")) fn and speak.")
                     .font(.system(size: 32, weight: .bold, design: .rounded))
-                Text("Release to drop the text into any field, in any app. Double-tap fn for hands-free. Everything is transcribed on this Mac.")
+                Text("Release to drop the text into any field, in any app. Double-tap fn to lock it on, tap once to finish. Everything is transcribed on this Mac.")
                     .font(.title3)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -76,23 +75,6 @@ struct HomeView: View {
                                              startPoint: .top, endPoint: .bottom), lineWidth: 0.75)
         }
         .shadow(color: Color.accentColor.opacity(0.12), radius: 30, y: 16)
-    }
-
-    private var stats: some View {
-        HStack(spacing: Space.l) {
-            StatTile(value: "\(model.dictations.totalWords)", label: "words dictated", symbol: "text.word.spacing")
-            StatTile(value: "\(model.meetings.meetings.count)", label: "meetings", symbol: "person.2.wave.2")
-            StatTile(value: "\(model.voices.prints.count)", label: "known voices", symbol: "person.wave.2")
-            StatTile(value: averageLatency, label: "avg. transcription", symbol: "bolt")
-        }
-        .fixedSize(horizontal: false, vertical: true)
-    }
-
-    private var averageLatency: String {
-        let recent = model.dictations.items.prefix(20)
-        guard !recent.isEmpty else { return "–" }
-        let avg = recent.map(\.processingTime).reduce(0, +) / Double(recent.count)
-        return "\(Int(avg * 1000)) ms"
     }
 
     private var recentDictations: some View {

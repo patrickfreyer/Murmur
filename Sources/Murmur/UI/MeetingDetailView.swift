@@ -429,9 +429,7 @@ struct SummaryCard: View {
                     }
                 }
                 if let summary = meeting.summary {
-                    Text(LocalizedStringKey(summary))
-                        .textSelection(.enabled)
-                        .fixedSize(horizontal: false, vertical: true)
+                    SummaryText(markdown: summary)
                 } else if busy {
                     Text("Writing notes with Apple Intelligence, on device…").foregroundStyle(.secondary)
                 }
@@ -517,5 +515,64 @@ struct FlowLayout: Layout {
             x += s.width + spacing
             row = max(row, s.height)
         }
+    }
+}
+
+/// Renders the summary's small Markdown dialect: paragraphs, **headings**, bullets and checkboxes.
+struct SummaryText: View {
+    let markdown: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.s) {
+            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+                switch block {
+                case .heading(let t):
+                    Text(t)
+                        .font(.caption.weight(.semibold))
+                        .textCase(.uppercase)
+                        .tracking(0.6)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, Space.s)
+                case .paragraph(let t):
+                    Text(inline(t)).fixedSize(horizontal: false, vertical: true)
+                case .bullet(let t):
+                    HStack(alignment: .firstTextBaseline, spacing: Space.s) {
+                        Circle().fill(.secondary).frame(width: 4.5, height: 4.5)
+                            .alignmentGuide(.firstTextBaseline) { d in d[VerticalAlignment.center] + 4 }
+                        Text(inline(t)).fixedSize(horizontal: false, vertical: true)
+                    }
+                case .task(let t, let done):
+                    HStack(alignment: .firstTextBaseline, spacing: Space.s) {
+                        Image(systemName: done ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 13))
+                            .foregroundStyle(done ? Color.green : Color.secondary)
+                        Text(inline(t)).strikethrough(done).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+        }
+        .textSelection(.enabled)
+    }
+
+    enum Block { case heading(String), paragraph(String), bullet(String), task(String, Bool) }
+
+    private var blocks: [Block] {
+        markdown.components(separatedBy: .newlines).compactMap { raw in
+            let line = raw.trimmingCharacters(in: .whitespaces)
+            guard !line.isEmpty else { return nil }
+            if line.hasPrefix("**"), line.hasSuffix("**"), line.count > 4 {
+                return .heading(String(line.dropFirst(2).dropLast(2)))
+            }
+            if line.hasPrefix("- [ ] ") { return .task(String(line.dropFirst(6)), false) }
+            if line.lowercased().hasPrefix("- [x] ") { return .task(String(line.dropFirst(6)), true) }
+            if line.hasPrefix("- ") || line.hasPrefix("• ") { return .bullet(String(line.dropFirst(2))) }
+            if line.hasPrefix("#") { return .heading(line.trimmingCharacters(in: CharacterSet(charactersIn: "# "))) }
+            return .paragraph(line)
+        }
+    }
+
+    private func inline(_ s: String) -> AttributedString {
+        (try? AttributedString(markdown: s, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
+            ?? AttributedString(s)
     }
 }

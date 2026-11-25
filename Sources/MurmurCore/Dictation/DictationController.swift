@@ -69,6 +69,14 @@ public final class DictationController {
 
     public func prewarm() { mic.prewarm() }
 
+    /// Puts the HUD into a given state without recording (README screenshots only).
+    public func preview(_ state: State, levels: [Float], appIcon: NSImage?) {
+        self.state = state
+        self.levels = levels
+        self.targetAppIcon = appIcon
+        self.startedAt = Date.now.addingTimeInterval(-42)
+    }
+
     public var isActive: Bool {
         if case .listening = state { return true }
         return state == .transcribing

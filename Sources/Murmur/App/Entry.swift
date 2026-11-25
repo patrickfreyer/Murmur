@@ -13,6 +13,8 @@ enum Entry {
             run { try await SelfTest.transcribe(URL(fileURLWithPath: args[2])) }
         } else if args.count >= 4, args[1] == "--selftest" {
             run { try await SelfTest.meetings(URL(fileURLWithPath: args[2]), URL(fileURLWithPath: args[3])) }
+        } else if args.count >= 4, args[1] == "--make-demo" {
+            run { try await SelfTest.makeDemo(URL(fileURLWithPath: args[2]), URL(fileURLWithPath: args[3])) }
         } else if args.count >= 2, args[1] == "--capture-test" {
             run { try await SelfTest.capture(seconds: Double(args.dropFirst(2).first ?? "") ?? 6) }
         } else {
@@ -97,6 +99,64 @@ enum SelfTest {
             print("\(ok ? "PASS" : "FAIL")  “\(phrase)” → \(got ?? "nil") (expected \(who))")
         }
         return failures == 0
+    }
+
+    /// Builds a demo library (fictional people, real transcriptions) for README screenshots.
+    static func makeDemo(_ a: URL, _ b: URL) async throws -> Bool {
+        let store = MeetingStore()
+        let voices = VoicePrintStore()
+        let matcher = VoiceMatcher()
+        let me = "Alex Rivera"
+        let idA = try importMeeting(a, title: "Weekly product sync", store: store)
+        await MeetingProcessor.process(idA, store: store, voices: voices, matcher: matcher, model: .ultra, meName: me)
+        guard let mA = store.meeting(idA) else { return false }
+        for s in mA.speakers {
+            let text = mA.segments.filter { $0.speakerID == s.id }.map(\.text).joined(separator: " ").lowercased()
+            let name = s.track == .mic ? me : text.contains("beta build") ? "Daniel Brooks" : "Karen Lee"
+            SpeakerNaming.assign(name: name, to: s.id, in: idA, store: store, voices: voices, matcher: matcher,
+                                 isMe: name == me)
+        }
+        let idB = try importMeeting(b, title: "Beta launch follow-up", store: store)
+        await MeetingProcessor.process(idB, store: store, voices: voices, matcher: matcher, model: .ultra, meName: me)
+        let hour: TimeInterval = 3600
+        store.update(idA) {
+            $0.createdAt = Date.now.addingTimeInterval(-26 * hour)
+            $0.summary = """
+                The team reviewed the launch timeline: the beta build is ready to go to testers on Thursday and the onboarding screens are finished.
+
+                **Key points**
+                - Final icons are the last open design item
+                - A slipping server migration would push the beta to Monday
+
+                **Action items**
+                - [ ] Karen Lee: send the final icons to Daniel by Wednesday
+                - [ ] Alex Rivera: decide on the beta date on Wednesday
+                """
+        }
+        store.update(idB) {
+            $0.createdAt = Date.now.addingTimeInterval(-2 * hour)
+            $0.summary = """
+                The server migration finished without problems, so the beta stays on track for Thursday with the new icons in the build.
+
+                **Action items**
+                - [ ] Daniel Brooks: send tester invitations tomorrow morning
+                - [ ] Alex Rivera: schedule a follow-up after first feedback
+                """
+        }
+        let dictations = DictationStore()
+        dictations.clear()
+        let samples: [(Double, String, String, String, Double, Double)] = [
+            (60 * 27, "Draft: the new onboarding flow cuts setup time from ten minutes to under two, mostly because permissions are requested in context.", "Safari", "com.apple.Safari", 9.4, 0.156),
+            (60 * 95, "Sounds good, see you at three.", "Messages", "com.apple.MobileSMS", 1.9, 0.092),
+            (60 * 37, "Remember to book the flights to Munich for the workshop and check whether the hotel near the office has availability.", "Notes", "com.apple.Notes", 6.8, 0.131),
+            (60 * 4, "Can you send me the updated deck before the call tomorrow? I want to review the pricing section once more.", "Mail", "com.apple.mail", 5.2, 0.118),
+        ]
+        for (ago, text, app, bundle, dur, ms) in samples {
+            dictations.add(Dictation(text: text, createdAt: Date.now.addingTimeInterval(-ago), duration: dur,
+                                     appName: app, appBundleID: bundle, processingTime: ms))
+        }
+        print("Demo library at \(Paths.root.path)")
+        return true
     }
 
     /// Records mic + system audio for a few seconds and transcribes both tracks.

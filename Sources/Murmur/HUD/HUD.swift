@@ -26,7 +26,7 @@ final class FloatingPanel: NSPanel {
 /// The dictation pill at the bottom of the screen.
 @MainActor
 final class HUDController {
-    private let panel = FloatingPanel(size: CGSize(width: 340, height: 96))
+    private let panel = FloatingPanel(size: CGSize(width: 380, height: 128))
     private let model: AppModel
 
     init(model: AppModel) {
@@ -67,7 +67,7 @@ final class HUDController {
         let screen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main
         guard let visible = screen?.visibleFrame else { return }
         let size = panel.frame.size
-        panel.setFrameOrigin(CGPoint(x: visible.midX - size.width / 2, y: visible.minY + 18))
+        panel.setFrameOrigin(CGPoint(x: visible.midX - size.width / 2, y: visible.minY + 2))
     }
 }
 
@@ -168,7 +168,7 @@ struct HUDView: View {
         .glassEffect(.regular.tint(locked ? Color.accentColor.opacity(0.12) : .clear), in: .capsule)
         .shadow(color: .black.opacity(0.18), radius: 18, y: 10)
         .shadow(color: .black.opacity(0.08), radius: 1.5, y: 1)
-        .padding(.bottom, 14)
+        .padding(.bottom, 30)
     }
 
     /// The app you're dictating into, which turns into a lock badge when hands-free is on.
