@@ -15,6 +15,8 @@
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license">
 </p>
 
+<p align="center"><a href="https://murmur-mac.pages.dev"><b>Website</b></a> · <a href="https://github.com/patrickfreyer/Murmur/releases/latest"><b>Download</b></a></p>
+
 <p align="center">
   <img src="docs/screenshots/home.jpg" alt="Murmur home screen" width="900">
 </p>
@@ -93,7 +95,8 @@ Sources/
   MurmurCore/      audio capture, speech engine, diarization, voice prints, storage (testable, no UI)
   Murmur/          the app: SwiftUI views, HUD, menu bar, settings
 Tests/MurmurTests/ unit tests (gesture timing, voice matching, transcript assembly, echo filter)
-Scripts/           build, release, demo data and screenshot tooling
+Scripts/           build, release, website deploy, demo data and screenshot tooling
+docs/              website (index.html), README screenshots
 ```
 
 ### End-to-end self-test
