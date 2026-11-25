@@ -62,6 +62,9 @@ final class AppModel {
     var captureSystemAudio: Bool = Defaults.bool("captureSystemAudio", true) {
         didSet { Defaults.set(captureSystemAudio, "captureSystemAudio") }
     }
+    var soundEffects: Bool = Defaults.bool("soundEffects", true) {
+        didSet { Defaults.set(soundEffects, "soundEffects") }
+    }
     var autoSummarize: Bool = Defaults.bool("autoSummarize", true) {
         didSet { Defaults.set(autoSummarize, "autoSummarize") }
     }
@@ -101,6 +104,9 @@ final class AppModel {
             guard let self else { return }
             self.voices.enrollMe(embedding: e, defaultName: self.meName)
             SpeakerNaming.relabelLibrary(store: self.meetings, voices: self.voices, matcher: self.matcher)
+        }
+        dictation.onCue = { [weak self] cue in
+            MainActor.assumeIsolated { Feedback.play(cue, sound: self?.soundEffects ?? true) }
         }
         dictation.prewarm()
 
@@ -194,12 +200,14 @@ final class AppModel {
         Task {
             await recorder.start(
                 store: meetings, echoCancellation: echoCancellation, captureSystemAudio: captureSystemAudio)
+            if recorder.isRecording { Feedback.meeting(started: true, sound: soundEffects) }
             if let id = recorder.meetingID { selection = .meeting(id) }
         }
     }
 
     func stopMeeting() {
         guard let id = recorder.meetingID else { return }
+        Feedback.meeting(started: false, sound: soundEffects)
         Task {
             await recorder.stop(
                 store: meetings, voices: voices, matcher: matcher, model: asrModel, meName: meName)

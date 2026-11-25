@@ -74,106 +74,193 @@ final class HUDController {
 struct HUDView: View {
     @Environment(AppModel.self) private var model
 
+    private let pillHeight: CGFloat = 52
+    private let node: CGFloat = 28
+    private let stopSize: CGFloat = 36
+
     var body: some View {
         let state = model.dictation.state
         VStack {
             Spacer(minLength: 0)
             if state != .idle {
                 pill(state)
-                    .transition(.scale(scale: 0.6, anchor: .bottom).combined(with: .opacity))
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.5, anchor: .bottom).combined(with: .opacity)
+                            .combined(with: .offset(y: 12)),
+                        removal: .scale(scale: 0.85, anchor: .bottom).combined(with: .opacity)))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .animation(.spring(response: 0.32, dampingFraction: 0.78), value: state)
+        .animation(.spring(response: 0.34, dampingFraction: 0.78), value: phaseKey(state))
+    }
+
+    private func phaseKey(_ s: DictationController.State) -> Int {
+        switch s {
+        case .idle: 0
+        case .listening(false): 1
+        case .listening(true): 2
+        case .transcribing: 3
+        case .inserted: 4
+        case .failed: 5
+        }
     }
 
     @ViewBuilder
     private func pill(_ state: DictationController.State) -> some View {
-        HStack(spacing: 12) {
+        let locked: Bool = { if case .listening(true) = state { return true }; return false }()
+        HStack(spacing: Space.s + 2) {
             switch state {
             case .listening(let handsFree):
-                if let icon = model.dictation.targetAppIcon {
-                    Image(nsImage: icon).resizable().frame(width: iconSize, height: iconSize)
-                }
-                Waveform(levels: model.dictation.levels)
-                    .frame(width: handsFree ? 120 : 150, height: 26)
+                leadingNode(locked: handsFree)
+                // Fixed widths: every element has its own lane, so nothing can overlap.
+                WaveformBars(levels: model.dictation.levels, bars: handsFree ? 22 : 30)
+                    .frame(width: WaveformBars.width(bars: handsFree ? 22 : 30), height: 26)
                 if handsFree {
                     TimelineView(.periodic(from: .now, by: 1)) { _ in
-                        Text(elapsed).font(.callout.monospacedDigit()).foregroundStyle(.secondary)
+                        Text(elapsed)
+                            .font(.system(size: 13, weight: .medium).monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .contentTransition(.numericText(countsDown: false))
                     }
+                    .frame(width: 40, alignment: .trailing)
                     Button {
                         model.dictation.finish()
                     } label: {
-                        Image(systemName: "stop.fill").font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(.white)
+                        RoundedRectangle(cornerRadius: 3.5, style: .continuous)
+                            .fill(.white)
+                            .frame(width: 12, height: 12)
                             .frame(width: stopSize, height: stopSize)
-                            .background(Color.red.gradient, in: .circle)
-                            .shadow(color: .red.opacity(0.4), radius: 4, y: 2)
+                            .background(Circle().fill(Color.red.gradient))
+                            .shadow(color: .red.opacity(0.45), radius: 6, y: 2)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(PressScaleStyle())
+                    .help("Finish (or tap fn)")
                 }
             case .transcribing:
-                ProgressView().controlSize(.small)
-                Text("Transcribing").font(.callout.weight(.medium))
-            case .inserted:
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green).font(.title3)
-                Text("Inserted").font(.callout.weight(.medium))
+                leadingNode(locked: false)
+                ShimmerText("Transcribing")
+                    .frame(width: 118, alignment: .leading)
+            case .inserted(let text):
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 22))
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(.white, .green)
+                    .symbolEffect(.bounce, value: text)
+                    .frame(width: node, height: node)
+                Text(preview(text))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .frame(maxWidth: 210, alignment: .leading)
             case .failed(let message):
-                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                Text(message).font(.callout).lineLimit(2)
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .frame(width: node, height: node)
+                Text(message).font(.callout).lineLimit(2).frame(maxWidth: 230, alignment: .leading)
             case .idle:
                 EmptyView()
             }
         }
         // Concentric insets: a circle of diameter d sits (height − d) / 2 from the capsule's end.
-        .padding(.leading, leadingInset(state))
-        .padding(.trailing, trailingInset(state))
+        .padding(.leading, (pillHeight - node) / 2)
+        .padding(.trailing, locked ? (pillHeight - stopSize) / 2 : 18)
         .frame(height: pillHeight)
-        .glassEffect(.regular, in: .capsule)
+        .glassEffect(.regular.tint(locked ? Color.accentColor.opacity(0.12) : .clear), in: .capsule)
         .shadow(color: .black.opacity(0.18), radius: 18, y: 10)
         .shadow(color: .black.opacity(0.08), radius: 1.5, y: 1)
         .padding(.bottom, 14)
     }
 
-    private let pillHeight: CGFloat = 52
-    private let iconSize: CGFloat = 28
-    private let stopSize: CGFloat = 36
-
-    private func leadingInset(_ state: DictationController.State) -> CGFloat {
-        if case .listening = state, model.dictation.targetAppIcon != nil { return (pillHeight - iconSize) / 2 }
-        return 18
-    }
-
-    private func trailingInset(_ state: DictationController.State) -> CGFloat {
-        if case .listening(true) = state { return (pillHeight - stopSize) / 2 }
-        return 20
+    /// The app you're dictating into, which turns into a lock badge when hands-free is on.
+    @ViewBuilder
+    private func leadingNode(locked: Bool) -> some View {
+        ZStack {
+            if locked {
+                Circle().fill(Color.accentColor.gradient)
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.white)
+                    .transition(.scale.combined(with: .opacity))
+            } else if let icon = model.dictation.targetAppIcon {
+                Image(nsImage: icon).resizable().interpolation(.high)
+            } else {
+                Circle().fill(.quaternary)
+                Image(systemName: "mic.fill").font(.system(size: 12, weight: .semibold))
+            }
+        }
+        .frame(width: node, height: node)
+        .shadow(color: locked ? Color.accentColor.opacity(0.5) : .clear, radius: 6)
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: locked)
     }
 
     private var elapsed: String {
         guard let s = model.dictation.startedAt else { return "0:00" }
         return Meeting.timestamp(Date.now.timeIntervalSince(s))
     }
+
+    private func preview(_ text: String) -> String {
+        text.count > 34 ? "“" + text.prefix(32) + "…”" : "“" + text + "”"
+    }
 }
 
-/// Mirrored bar waveform driven by recent mic levels.
-struct Waveform: View {
+/// Mirrored capsule bars with a soft accent-to-violet gradient; newest audio on the right.
+struct WaveformBars: View {
     var levels: [Float]
-    var color: Color = .primary
+    var bars: Int
+
+    static let barWidth: CGFloat = 3
+    static let gap: CGFloat = 2.5
+
+    static func width(bars: Int) -> CGFloat { CGFloat(bars) * barWidth + CGFloat(bars - 1) * gap }
 
     var body: some View {
-        GeometryReader { geo in
-            let count = levels.count
-            let spacing: CGFloat = 3
-            let width = max(2, (geo.size.width - spacing * CGFloat(count - 1)) / CGFloat(count))
-            HStack(alignment: .center, spacing: spacing) {
-                ForEach(levels.indices, id: \.self) { i in
-                    Capsule()
-                        .fill(color.opacity(0.35 + 0.65 * Double(levels[i])))
-                        .frame(width: width, height: max(3, geo.size.height * CGFloat(levels[i])))
-                }
+        let recent = Array(levels.suffix(bars))
+        Canvas { ctx, size in
+            let gradient = Gradient(colors: [Color.accentColor, .purple, .pink])
+            for (i, level) in recent.enumerated() {
+                // Older bars fade slightly: the waveform "flows" into the pill.
+                let x = CGFloat(i) * (Self.barWidth + Self.gap)
+                let h = max(3, size.height * CGFloat(min(1, level * 1.15)))
+                let rect = CGRect(x: x, y: (size.height - h) / 2, width: Self.barWidth, height: h)
+                let age = Double(recent.count - 1 - i) / Double(max(1, recent.count - 1))
+                ctx.opacity = 1 - age * 0.45
+                ctx.fill(Path(roundedRect: rect, cornerRadius: Self.barWidth / 2),
+                         with: .linearGradient(gradient, startPoint: .zero, endPoint: CGPoint(x: size.width, y: 0)))
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .animation(.linear(duration: 0.05), value: levels)
         }
+        .animation(.linear(duration: 0.05), value: recent)
+    }
+}
+
+/// Text with a light sweep moving across it.
+struct ShimmerText: View {
+    var text: String
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        Text(text)
+            .font(.callout.weight(.medium))
+            .foregroundStyle(.secondary)
+            .overlay {
+                TimelineView(.animation) { ctx in
+                    let t = ctx.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.4) / 1.4
+                    LinearGradient(
+                        stops: [.init(color: .clear, location: t - 0.25), .init(color: .white, location: t),
+                                .init(color: .clear, location: t + 0.25)],
+                        startPoint: .leading, endPoint: .trailing)
+                }
+                .mask(Text(text).font(.callout.weight(.medium)))
+            }
+    }
+}
+
+/// Buttons that dip under your finger.
+struct PressScaleStyle: ButtonStyle {
+    var scale: CGFloat = 0.9
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? scale : 1)
+            .animation(.spring(response: 0.2, dampingFraction: 0.6), value: configuration.isPressed)
     }
 }

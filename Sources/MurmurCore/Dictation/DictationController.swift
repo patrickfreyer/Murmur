@@ -35,7 +35,7 @@ public final class DictationController {
 
     public private(set) var state: State = .idle
     /// Recent meter levels for the HUD waveform (oldest first).
-    public private(set) var levels: [Float] = Array(repeating: 0, count: 28)
+    public private(set) var levels: [Float] = Array(repeating: 0, count: 30)
     public private(set) var startedAt: Date?
     public private(set) var targetAppName: String?
     public private(set) var targetAppIcon: NSImage?
@@ -46,14 +46,17 @@ public final class DictationController {
     public var meName = "Me"
     public var onDictation: ((Dictation) -> Void)?
     public var onVoiceSample: (@MainActor ([Float]) -> Void)?
+    /// Moments worth a sound or haptic (handled by the app).
+    public var onCue: ((Cue) -> Void)?
+
+    public enum Cue: Sendable { case started, locked, stopped, inserted, cancelled }
 
     private let log = Logger(subsystem: "com.patrickfreyer.murmur", category: "Dictation")
     private let mic = MicCapture()
     private let buffer = SampleBuffer()
     private let meter = LevelMeter()
     private var meterTask: Task<Void, Never>?
-    private var lastTapAt: TimeInterval = 0
-    private var stopOnRelease = false
+    private var gesture = FnGestureRecognizer()
     private var voiceSamplesLearned = 0
     private let maxDuration: TimeInterval = 10 * 60
 
@@ -75,46 +78,46 @@ public final class DictationController {
 
     public func handle(_ event: FnKeyMonitor.Event) {
         DiagnosticLog.write("fn event \(event) in state \(state)")
+        let now = ProcessInfo.processInfo.systemUptime
         switch event {
         case .pressed:
-            switch state {
-            case .listening(handsFree: true):
-                stopOnRelease = true
-            case .idle, .inserted, .failed:
-                begin()
-            default:
-                break
-            }
-
-        case .released(let held, let interrupted):
-            guard case .listening(let handsFree) = state else { return }
-            if handsFree {
-                if stopOnRelease {
-                    stopOnRelease = false
-                    finish()
+            if state == .transcribing { return }
+            if case .inserted = state { gesture.reset() }
+            if case .failed = state { gesture.reset() }
+            apply(gesture.press(at: now))
+        case .released(_, let interrupted):
+            apply(gesture.release(at: now, interrupted: interrupted))
+            if let deadline = gesture.pendingDeadline {
+                Task { @MainActor [weak self] in
+                    try? await Task.sleep(for: .seconds(max(0, deadline - ProcessInfo.processInfo.systemUptime)))
+                    guard let self else { return }
+                    self.apply(self.gesture.timeout(at: ProcessInfo.processInfo.systemUptime))
                 }
-                return
             }
-            if interrupted {
-                cancel()
-                return
-            }
-            if held >= 0.3 {
-                finish()
-                return
-            }
-            // Short tap: a second tap within 450 ms switches to hands-free mode.
-            let now = ProcessInfo.processInfo.systemUptime
-            if now - lastTapAt < 0.45 {
-                lastTapAt = 0
-                state = .listening(handsFree: true)
-            } else {
-                lastTapAt = now
-                cancel(silently: true)
-            }
-
         case .escape:
+            gesture.reset()
             cancel()
+        }
+    }
+
+    private func apply(_ action: FnGestureRecognizer.Action) {
+        switch action {
+        case .none:
+            break
+        case .start:
+            begin()
+        case .lock:
+            if case .listening = state {
+                state = .listening(handsFree: true)
+                onCue?(.locked)
+            } else {
+                begin()
+                if case .listening = state { state = .listening(handsFree: true) }
+            }
+        case .finish:
+            finish()
+        case .cancel:
+            cancel(silently: true)
         }
     }
 
@@ -126,7 +129,10 @@ public final class DictationController {
         case .transcribing: break
         default:
             begin()
-            if case .listening = state { state = .listening(handsFree: true) }
+            if case .listening = state {
+                state = .listening(handsFree: true)
+                gesture.forceLock()
+            }
         }
     }
 
@@ -145,7 +151,7 @@ public final class DictationController {
         }
         startedAt = .now
         state = .listening(handsFree: false)
-        stopOnRelease = false
+        onCue?(.started)
         meterTask?.cancel()
         meterTask = Task { @MainActor [weak self] in
             while !Task.isCancelled, let self {
@@ -158,6 +164,8 @@ public final class DictationController {
     }
 
     public func cancel(silently: Bool = false) {
+        gesture.reset()
+        if case .listening = state, !silently { onCue?(.cancelled) }
         mic.stop()
         meterTask?.cancel()
         _ = buffer.take()
@@ -168,6 +176,8 @@ public final class DictationController {
 
     public func finish() {
         guard case .listening = state else { return }
+        gesture.reset()
+        onCue?(.stopped)
         // Keep the mic open ~150 ms after release: people let go of fn while saying the last word.
         state = .transcribing
         meterTask?.cancel()
@@ -203,6 +213,7 @@ public final class DictationController {
                     text: result.text, duration: duration, appName: targetAppName, appBundleID: targetBundleID,
                     processingTime: elapsed))
             state = .inserted(result.text)
+            onCue?(.inserted)
             learnVoice(from: samples, duration: duration)
             try? await Task.sleep(for: .milliseconds(900))
             if case .inserted = state { state = .idle }

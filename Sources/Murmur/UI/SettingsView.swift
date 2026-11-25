@@ -28,9 +28,10 @@ private struct GeneralSettings: View {
             }
             Section("Dictation") {
                 LabeledContent("Push to talk", value: "Hold fn")
-                LabeledContent("Hands-free", value: "Double-tap fn, tap again to finish")
+                LabeledContent("Lock on", value: "Double-tap fn · tap once to finish")
                 LabeledContent("Cancel", value: "Esc")
                 Toggle("Stop fn from opening emoji / Apple dictation", isOn: $model.suppressGlobeAction)
+                Toggle("Sound effects", isOn: $model.soundEffects)
             }
             Section {
                 Toggle("Open at login", isOn: $model.launchAtLogin)
