@@ -39,7 +39,7 @@ enum Snapshots {
 
             var shots: [(String, SidebarItem)] = [
                 ("home", .home), ("meetings", .meetings), ("dictations", .dictations), ("voices", .voices),
-                ("stats", .stats),
+                ("stats", .stats), ("coach", .coach),
             ]
             // Prefer a meeting whose speakers were recognised automatically (shows the voice-print magic).
             let ready = model.meetings.meetings.filter { $0.status == .ready }

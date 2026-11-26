@@ -12,6 +12,7 @@ enum SidebarItem: Hashable {
     case dictations
     case voices
     case stats
+    case coach
     case meeting(UUID)
 }
 
@@ -36,6 +37,13 @@ final class AppModel {
     var micStatus = AVCaptureDevice.authorizationStatus(for: .audio)
     var fnMonitorRunning = false
     var summarizing: Set<UUID> = []
+    var coaching: Set<UUID> = []
+    /// Last focus the Coach page found (shown in the sidebar without recomputing anything).
+    var coachFocus: Coach.Focus? = Coach.Focus(rawValue: Defaults.string("coachFocus") ?? "") {
+        didSet { Defaults.set(coachFocus?.rawValue ?? "", "coachFocus") }
+    }
+    /// Commitments you ticked off.
+    var coachDone: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "coachDone") ?? [])
 
     // MARK: Settings (persisted)
 
@@ -240,6 +248,29 @@ final class AppModel {
             }
         } catch {
             meetings.update(id) { $0.summary = "Couldn't summarise: \(error.localizedDescription)" }
+        }
+    }
+
+    func toggleCoachDone(_ id: String) {
+        if coachDone.contains(id) { coachDone.remove(id) } else { coachDone.insert(id) }
+        UserDefaults.standard.set(Array(coachDone), forKey: "coachDone")
+    }
+
+    /// On-demand coaching for one meeting (Apple Intelligence, on device). Stored with the meeting.
+    func coach(_ id: UUID) async {
+        guard let meeting = meetings.meeting(id) else { return }
+        let me = voices.me
+        let you = Set(meeting.speakers.filter { s in
+            (me != nil && s.voicePrintID == me?.id) || s.name == meName
+        }.map(\.id))
+        guard !you.isEmpty else { return }
+        coaching.insert(id)
+        defer { coaching.remove(id) }
+        do {
+            let notes = try await CoachFeedback.generate(for: meeting, youAre: you)
+            meetings.update(id) { $0.coaching = notes }
+        } catch {
+            DiagnosticLog.write("coach: feedback failed: \(error.localizedDescription)")
         }
     }
 

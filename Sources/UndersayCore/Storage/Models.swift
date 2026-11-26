@@ -90,6 +90,8 @@ public struct Meeting: Codable, Sendable, Identifiable, Hashable {
     public var segments: [TranscriptSegment]
     public var summary: String?
     public var sourceApp: String?
+    /// On-demand coaching notes (generated once, when asked).
+    public var coaching: CoachingNotes?
 
     public init(
         id: UUID = UUID(), title: String, createdAt: Date = .now, duration: TimeInterval = 0,
@@ -169,5 +171,23 @@ public struct Dictation: Codable, Sendable, Identifiable, Hashable {
         self.duration = duration
         self.appName = appName
         self.processingTime = processingTime
+    }
+}
+
+public struct CoachingNotes: Codable, Sendable, Hashable {
+    public struct Improvement: Codable, Sendable, Hashable {
+        public var quote: String
+        public var better: String
+        public var why: String
+    }
+
+    public var strengths: [String]
+    public var improvements: [Improvement]
+    public var createdAt: Date
+
+    public init(strengths: [String], improvements: [Improvement], createdAt: Date = .now) {
+        self.strengths = strengths
+        self.improvements = improvements
+        self.createdAt = createdAt
     }
 }

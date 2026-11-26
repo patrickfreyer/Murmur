@@ -15,13 +15,19 @@ import Foundation
 public enum SmartFormatter {
     public struct Options: Sendable {
         /// Silence after a sentence that starts a new paragraph.
-        public var paragraphPause: TimeInterval = 1.3
+        /// Shortest silence after a sentence that the paragraph model will even consider.
+        /// Whether it actually breaks is up to `ParagraphModel`.
+        public var paragraphPause: TimeInterval = 0.8
+        /// Pause-based paragraphs only in dictations at least this long (short messages stay one block).
+        public var minWordsForParagraphs = 40
+        /// …and only once the current paragraph already has this many sentences.
+        public var minSentencesPerParagraph = 2
         /// The text goes into a field that accepts line breaks.
         public var multiline = true
         /// Treat "new line", "new paragraph", "bullet point" as commands.
         public var spokenCommands = true
 
-        public init(paragraphPause: TimeInterval = 1.3, multiline: Bool = true, spokenCommands: Bool = true) {
+        public init(paragraphPause: TimeInterval = 0.8, multiline: Bool = true, spokenCommands: Bool = true) {
             self.paragraphPause = paragraphPause
             self.multiline = multiline
             self.spokenCommands = spokenCommands
@@ -34,7 +40,10 @@ public enum SmartFormatter {
     public static func format(words: [Word], options: Options = Options()) -> String {
         var pieces = tokens(from: words)
         if options.spokenCommands { pieces = applyCommands(pieces) }
-        var blocks = assemble(pieces, paragraphPause: options.paragraphPause)
+        let breaks = ParagraphModel.breakIndices(
+            pieces, minWords: options.minWordsForParagraphs, minSentences: options.minSentencesPerParagraph,
+            minPause: options.paragraphPause)
+        var blocks = assemble(pieces, breaks: breaks)
         blocks = splitGreeting(blocks)
         blocks = splitSignOff(blocks)
         blocks = numberedLists(blocks)
@@ -133,7 +142,7 @@ public enum SmartFormatter {
         return ".!?".contains(c)
     }
 
-    static func assemble(_ pieces: [Piece], paragraphPause: TimeInterval) -> [Block] {
+    static func assemble(_ pieces: [Piece], breaks: Set<Int> = []) -> [Block] {
         var blocks: [Block] = []
         var current: Block?
         var previousWord: String?
@@ -148,7 +157,7 @@ public enum SmartFormatter {
             current = nil
         }
 
-        for piece in pieces {
+        for (index, piece) in pieces.enumerated() {
             switch piece {
             case .paragraph:
                 flush()
@@ -163,13 +172,9 @@ public enum SmartFormatter {
                 // Lists sit directly under their intro line ("Agenda:") and under each other.
                 current = Block(kind: .bullet, text: "", tight: !blocks.isEmpty)
                 capitalizeNext = true
-            case .word(var w, let gap):
-                // A long pause at a sentence boundary starts a new paragraph (not inside lists).
-                if let prev = previousWord, endsSentence(prev), gap >= paragraphPause,
-                    current?.kind == .paragraph
-                {
-                    flush()
-                }
+            case .word(var w, _):
+                // The paragraph model decided this word opens a new paragraph.
+                if breaks.contains(index), current?.kind == .paragraph { flush() }
                 if capitalizeNext || current == nil {
                     w = capitalizedFirst(w)
                     capitalizeNext = false

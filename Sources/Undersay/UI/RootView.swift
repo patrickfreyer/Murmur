@@ -31,6 +31,8 @@ struct RootView: View {
             VoicesView()
         case .stats:
             StatsView()
+        case .coach:
+            CoachView()
         case .meeting(let id):
             if model.recorder.meetingID == id {
                 LiveMeetingView()
@@ -355,6 +357,7 @@ struct StatTiles: View {
 
     var body: some View {
         let columns = [GridItem(.flexible(), spacing: Space.s), GridItem(.flexible(), spacing: Space.s)]
+        VStack(spacing: Space.s) {
         LazyVGrid(columns: columns, spacing: Space.s) {
             StatTileButton(title: "Meetings", value: "\(model.meetings.meetings.count)", symbol: "person.2.wave.2.fill",
                            tint: .orange, target: .meetings)
@@ -364,6 +367,8 @@ struct StatTiles: View {
                            tint: .purple, target: .voices)
             StatTileButton(title: "Statistics", value: averageLatency, symbol: "chart.bar.fill",
                            tint: .green, target: .stats)
+        }
+        CoachTile()
         }
     }
 
@@ -479,5 +484,50 @@ struct SidebarHeader: View {
         if !model.fnMonitorRunning { return .orange }
         if case .ready = model.modelStatus { return .green }
         return .yellow
+    }
+}
+
+/// Full-width tile under the stats grid: the Coach and this week's focus.
+struct CoachTile: View {
+    @Environment(AppModel.self) private var model
+    @State private var hovering = false
+
+    var body: some View {
+        let selected = model.selection == .coach
+        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+        let tint = Color.teal
+        Button {
+            model.selection = .coach
+        } label: {
+            HStack(spacing: Space.s + 2) {
+                Image(systemName: "figure.mind.and.body")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 26, height: 26)
+                    .background(Circle().fill(selected ? AnyShapeStyle(.white.opacity(0.28)) : AnyShapeStyle(tint.gradient)))
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Coach").font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(selected ? .white.opacity(0.9) : .secondary)
+                    Text(model.coachFocus?.title ?? "Communication tips")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(selected ? .white : .primary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").font(.caption.weight(.bold))
+                    .foregroundStyle(selected ? .white.opacity(0.8) : .secondary.opacity(0.6))
+            }
+            .padding(.horizontal, Space.s + 2)
+            .padding(.vertical, Space.s)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                shape.fill(selected ? AnyShapeStyle(tint.gradient) : AnyShapeStyle(.primary.opacity(hovering ? 0.09 : 0.055)))
+                    .overlay { shape.strokeBorder(.primary.opacity(selected ? 0 : 0.06), lineWidth: 0.5) }
+            }
+            .contentShape(shape)
+        }
+        .buttonStyle(PressScaleStyle(scale: 0.97))
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.15), value: hovering)
     }
 }

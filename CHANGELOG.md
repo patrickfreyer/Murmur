@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- **Coach** (sidebar): one habit to focus on each week, picked against your own history; airtime,
+  questions, cut-ins and hedge words; commitments you made and ones others made to you; a tone check
+  using Apple's on-device sentiment model; and per-meeting feedback from Apple Intelligence, only when
+  you ask, verified against your actual words and saved with the meeting.
+- Paragraph breaks now come from a small model (pause relative to your own rhythm, transition words,
+  topic shift from on-device sentence embeddings, paragraph length) instead of a fixed pause. Short
+  dictations and thinking pauses stay one paragraph.
+
 ## 0.9.1
 
 - **Murmur is now Undersay.** Several other Mac dictation apps share the old name. On first launch your
