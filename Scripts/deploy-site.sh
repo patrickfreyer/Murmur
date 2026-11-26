@@ -8,11 +8,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-PROJECT="${PROJECT:-murmur-mac}"
+PROJECT="${PROJECT:-undersay}"
 export CLOUDFLARE_ACCOUNT_ID=116092b8ab67eb99b520552e6655f045   # personal account, never Telarron
 SITE_URL="${SITE_URL:-https://$PROJECT.pages.dev}"
 VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" Resources/Info.plist)
-DOWNLOAD_URL="https://github.com/patrickfreyer/Murmur/releases/download/v$VERSION/Murmur-$VERSION.zip"
+DOWNLOAD_URL="https://github.com/patrickfreyer/Undersay/releases/download/v$VERSION/Undersay-$VERSION.zip"
 OUT=site-dist
 
 rm -rf "$OUT"

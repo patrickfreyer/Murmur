@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.9.1
+
+- **Murmur is now Undersay.** Several other Mac dictation apps share the old name. On first launch your
+  transcripts, voice prints, dictation history and settings move over automatically. macOS treats the
+  renamed app as new, so allow Microphone and Accessibility once more.
 
 - Statistics page (sidebar tile "Statistics"): words dictated and time saved, latency histogram with
   median, p95 and real-time factor, speaking pace, a weekday × hour heatmap, top apps, meeting talk share,
@@ -9,7 +13,7 @@
   from real pauses (measured in the audio), numbered lists from "First… Second… Third…", and the spoken
   commands "new line", "new paragraph" and "bullet point". Single-line fields stay on one line.
 
-## 0.9.0 — first public beta
+## 0.9.0 — first public beta (as Murmur)
 
 - Hold **fn** to dictate into any app; double-tap to lock it on, tap once to finish; esc cancels
 - On-device transcription with Parakeet on the Neural Engine (around 100 ms for a typical sentence)

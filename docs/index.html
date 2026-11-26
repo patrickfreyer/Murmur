@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Murmur: free on-device dictation and meeting transcription for Mac</title>
-<meta name="description" content="Hold fn and speak to type in any Mac app. Murmur also records meetings, tells you who said what and remembers voices. Everything runs on your Mac. Free and open source.">
+<title>Undersay: Free Dictation for Mac, Local Meeting Notes</title>
+<meta name="description" content="Hold fn to dictate into any app, record meetings and know who said what. Speech to text runs on your Mac in about 100 ms. Free and open source.">
 <link rel="canonical" href="https://SITE_URL/">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Murmur: hold fn, speak, and it's typed">
+<meta property="og:title" content="Undersay: free dictation for Mac that stays on your Mac">
 <meta property="og:description" content="Free, open-source dictation and meeting transcription for Mac. Fully on-device.">
 <meta property="og:image" content="https://SITE_URL/screenshots/home.jpg">
 <meta property="og:url" content="https://SITE_URL/">
@@ -18,7 +18,7 @@
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "Murmur",
+  "name": "Undersay",
   "applicationCategory": "ProductivityApplication",
   "operatingSystem": "macOS 26 or later (Apple Silicon)",
   "softwareVersion": "VERSION",
@@ -26,7 +26,105 @@
   "description": "On-device dictation into any app with the fn key, meeting transcription with speaker identification, and local voice prints.",
   "downloadUrl": "DOWNLOAD_URL",
   "license": "https://opensource.org/licenses/MIT",
-  "screenshot": "https://SITE_URL/screenshots/meeting.jpg"
+  "screenshot": "https://SITE_URL/screenshots/meeting.jpg",
+  "author": { "@type": "Person", "name": "Patrick Freyer", "url": "https://github.com/patrickfreyer" },
+  "sameAs": "https://github.com/patrickfreyer/Undersay"
+}
+</script>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "FAQPage",
+ "mainEntity": [
+  {
+   "@type": "Question",
+   "name": "Is there a free dictation app for Mac?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Yes. Undersay is free and open source under the MIT license: no paid tier, no trial, no account. macOS also has Apple Dictation built in; Undersay adds hold-to-talk in any app, meeting recording and speaker recognition."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "How is it different from Apple Dictation?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "You hold fn while you speak and the text lands when you let go, in any app. It's transcribed by NVIDIA's Parakeet model on the Neural Engine, lays out greetings, paragraphs and lists for you, keeps a history, and also records and transcribes meetings."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Does it work offline? Does any audio leave my Mac?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "It works offline. After a one-time download of the open-source speech model, dictation, meeting transcription, speaker identification and summaries all run on your Mac. No audio, text or voice print is ever uploaded."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "What's a free alternative to Wispr Flow, superwhisper or MacWhisper?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Undersay is a free, open-source alternative that runs entirely on your Mac. It combines push-to-talk dictation and meeting transcription in one app and remembers people across meetings by their voice."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Can it transcribe Zoom, Teams and Google Meet calls? Does a bot join?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Yes, and no bot joins. Undersay records the call's audio through a Core Audio process tap and your microphone on a separate track, so it can tell you apart from the people on the call."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Why doesn't it need screen-recording permission?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "It only captures audio. macOS lets apps record system audio with the System Audio Recording permission, so Undersay never sees your screen."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "How does it know who said what?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "It separates the voices in each recording and compares them with voice prints you've named before. A voice print is a list of numbers that describes a voice; it's stored only on your Mac and you can rename or forget it at any time."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Which Macs does it run on?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Apple Silicon Macs (M1 or later) running macOS 26 or later. Intel Macs aren't supported. Summaries need Apple Intelligence to be turned on."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Why does macOS say it can't verify the developer?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "This early version isn't notarized by Apple yet. Open System Settings → Privacy & Security and click Open Anyway once; after that it opens normally."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Which languages does it support?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "The default Parakeet Ultra model understands 25 European languages, including English, German, French, Spanish and Italian. An English-only model is available in Settings."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Is it really free? What's the catch?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "There isn't one. It's MIT-licensed open source with no account, no server and no tracking. Everything is on GitHub."
+   }
+  }
+ ]
 }
 </script>
 <style>
@@ -248,30 +346,30 @@
 
 <nav>
   <div class="wrap">
-    <a class="brand" href="#"><img src="icon.png" alt="">Murmur</a>
+    <a class="brand" href="#"><img src="icon.png" alt="">Undersay</a>
     <div class="links">
       <a class="hide-s" href="#dictation">Dictation</a>
       <a class="hide-s" href="#meetings">Meetings</a>
       <a class="hide-s" href="#voices">Voices</a>
       <a class="hide-s" href="#privacy">Privacy</a>
-      <a class="hide-s" href="https://github.com/patrickfreyer/Murmur">GitHub</a>
+      <a class="hide-s" href="https://github.com/patrickfreyer/Undersay">GitHub</a>
       <a class="btn small" href="DOWNLOAD_URL">Download</a>
     </div>
   </div>
 </nav>
 
 <header class="hero wrap">
-  <img class="icon" src="icon.png" alt="Murmur app icon">
-  <h1>Hold fn. Speak.<br><span class="grad">It's typed.</span></h1>
-  <p class="lead">Murmur is free dictation and meeting transcription for Mac. It types into any app, tells you who said what in your meetings, and remembers voices. It all runs on your Mac.</p>
+  <img class="icon" src="icon.png" alt="Undersay app icon">
+  <h1>Dictation for Mac<br><span class="grad">that stays on your Mac.</span></h1>
+  <p class="lead">Hold <kbd>fn</kbd> to turn speech into text in any app. Record meetings and see who said what. Free, open source, and nothing goes to the cloud.</p>
   <div class="cta">
     <a class="btn big" href="DOWNLOAD_URL">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12m0 0-5-5m5 5 5-5M5 20h14"/></svg>
       Download for Mac
     </a>
-    <a class="btn big ghost" href="https://github.com/patrickfreyer/Murmur">View on GitHub</a>
+    <a class="btn big ghost" href="https://github.com/patrickfreyer/Undersay">View on GitHub</a>
   </div>
-  <p class="meta">Version VERSION · Free and open source (MIT) · macOS 26 or later · Apple Silicon</p>
+  <p class="meta">Version VERSION · macOS 26 · Apple Silicon · MIT license · 0.5 GB model, downloaded once</p>
 
   <div class="stage-outer reveal">
     <div class="stage" aria-label="Animated demo: holding fn and speaking types an email in Mail">
@@ -293,14 +391,14 @@
         <div class="done"><span class="check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>Inserted · 96 ms</div>
       </div>
     </div>
-    <p class="caption">Real speed: Murmur typically transcribes a sentence in about 100 ms, on the Neural Engine.</p>
+    <p class="caption">Real speed: Undersay typically transcribes a sentence in about 100 ms, on the Neural Engine.</p>
   </div>
 
   <div class="numbers reveal">
     <div><b>~100 ms</b><span>to transcribe a sentence</span></div>
     <div><b>100%</b><span>on your Mac</span></div>
     <div><b>25</b><span>languages</span></div>
-    <div><b>$0</b><span>free, no account</span></div>
+    <div><b>$0</b><span>no account, no subscription</span></div>
   </div>
 </header>
 
@@ -308,7 +406,7 @@
   <div class="center reveal">
     <p class="eyebrow">Dictation</p>
     <h2>Type with your voice,<br>in any app.</h2>
-    <p class="sub2">Mail, Slack, Notes, your browser or your code editor: if it has a text field, Murmur can type into it. No new window, no copy and paste.</p>
+    <p class="sub2">Mail, Slack, Notes, your browser or your code editor: if it has a text field, Undersay can type into it. No new window, no copy and paste.</p>
   </div>
   <div class="grid reveal">
     <div class="card">
@@ -329,7 +427,7 @@
     <div class="card">
       <div class="fi" style="background:linear-gradient(160deg,#30d158,#0a9f3a)"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h10M4 12h16M4 17h7"/></svg></div>
       <h3>Fits into your text</h3>
-      <p>Murmur checks what's already around your cursor, so spaces and capital letters come out right when you continue a sentence.</p>
+      <p>Undersay checks what's already around your cursor, so spaces and capital letters come out right when you continue a sentence.</p>
     </div>
     <div class="card">
       <div class="fi" style="background:linear-gradient(160deg,#ff6f91,#e0245e)"><svg viewBox="0 0 24 24" fill="#fff"><rect x="6" y="4" width="12" height="16" rx="2.5"/><rect x="9" y="2.5" width="6" height="3.5" rx="1.2" fill="#ffb3c6"/></svg></div>
@@ -349,16 +447,16 @@
     <div>
       <p class="eyebrow">Meetings</p>
       <h2>Know who said what.</h2>
-      <p class="sub2">One click records your microphone and the call from Zoom, Meet, Teams or any other app. When you stop, Murmur writes a clean transcript, works out who's speaking and, if you like, summarises it.</p>
+      <p class="sub2">One click records your microphone and the call from Zoom, Meet, Teams or any other app. When you stop, Undersay writes a clean transcript, works out who's speaking and, if you like, summarises it.</p>
       <ul class="checks">
-        <li><span><b>Records the call itself, not your screen.</b> Murmur captures system audio directly and needs no screen-recording permission.</span></li>
+        <li><span><b>Records the call itself, not your screen.</b> Undersay captures system audio directly and needs no screen-recording permission.</span></li>
         <li><span><b>A live transcript</b> while you talk, then a full, accurate pass when you stop.</span></li>
         <li><span><b>Tells speakers apart</b>, and filters out echo from your speakers when you're not wearing headphones.</span></li>
         <li><span><b>Summaries and action items</b> written by Apple Intelligence, on your Mac.</span></li>
         <li><span><b>Tap any line to hear it.</b> Export to Markdown, plain text or subtitles.</span></li>
       </ul>
     </div>
-    <img class="shot" src="screenshots/meeting.jpg" alt="A meeting transcript in Murmur with speakers recognised by voice, a summary with action items, and playback controls" loading="lazy">
+    <img class="shot" src="screenshots/meeting.jpg" alt="A meeting transcript in Undersay with speakers recognised by voice, a summary with action items, and playback controls" loading="lazy">
   </div>
 </section>
 
@@ -366,8 +464,8 @@
   <div class="split rev reveal">
     <div>
       <p class="eyebrow">Voice prints</p>
-      <h2>Name someone once.<br>Murmur remembers.</h2>
-      <p class="sub2">The first time Daniel speaks, he's "Speaker 2". Tap him, type his name, and that's it: Murmur recognises his voice in every meeting after this one, and goes back and labels your older ones too.</p>
+      <h2>Name someone once.<br>Undersay remembers.</h2>
+      <p class="sub2">The first time Daniel speaks, he's "Speaker 2". Tap him, type his name, and that's it: Undersay recognises his voice in every meeting after this one, and goes back and labels your older ones too.</p>
       <div class="voices">
         <div class="vchip"><div class="av" style="background:linear-gradient(160deg,#8fb8ff,#3e7bff)">AR</div><div>Alex Rivera <span class="spark">✦</span><small>you · learned from dictation</small></div></div>
         <div class="vchip"><div class="av" style="background:linear-gradient(160deg,#7be495,#28a745)">DB</div><div>Daniel Brooks <span class="spark">✦</span><small>recognised · 97% match</small></div></div>
@@ -375,7 +473,7 @@
       </div>
       <p class="sub2" style="font-size:16px">Voice prints are numeric fingerprints, not recordings. They never leave your Mac, and you can rename or forget one any time.</p>
     </div>
-    <img class="shot" src="screenshots/voices.jpg" alt="The Voices library in Murmur, with a face and voice signature for each person" loading="lazy">
+    <img class="shot" src="screenshots/voices.jpg" alt="The Voices library in Undersay, with a face and voice signature for each person" loading="lazy">
   </div>
 </section>
 
@@ -383,7 +481,7 @@
   <div class="privacy reveal">
     <p class="eyebrow">Privacy</p>
     <h2>Your words stay yours.</h2>
-    <p class="sub2">Most dictation and meeting tools send your audio to someone's server. Murmur doesn't have a server.</p>
+    <p class="sub2">Most dictation and meeting tools send your audio to someone's server. Undersay doesn't have a server.</p>
     <div class="grid">
       <div class="card"><h3>On-device models</h3><p>Speech recognition, speaker identification and summaries all run locally on Apple Silicon.</p></div>
       <div class="card"><h3>No account, no tracking</h3><p>No sign-up, no analytics, no telemetry. The only download is the open-source model, the first time you launch.</p></div>
@@ -397,9 +495,9 @@
     <p class="eyebrow">Install</p>
     <h2>Up and running in a minute.</h2>
     <ol class="steps">
-      <li><span><b>Download Murmur</b>, unzip it and drag it into Applications.</span></li>
+      <li><span><b>Download Undersay</b>, unzip it and drag it into Applications.</span></li>
       <li><span><b>Open it.</b> This early version isn't notarized yet, so macOS asks first: go to System Settings → Privacy &amp; Security and click <b>Open Anyway</b>.</span></li>
-      <li><span><b>Allow Microphone and Accessibility.</b> Accessibility is what lets Murmur notice the fn key and type into other apps.</span></li>
+      <li><span><b>Allow Microphone and Accessibility.</b> Accessibility is what lets Undersay notice the fn key and type into other apps.</span></li>
       <li><span><b>Optional:</b> System Settings → Keyboard → “Press 🌐 key to” → <b>Do Nothing</b>, so the emoji picker doesn't pop up.</span></li>
       <li><span><b>Hold <kbd>fn</kbd> and say hello.</b> The first launch downloads the speech model (about 0.5 GB); after that, everything works offline.</span></li>
     </ol>
@@ -412,12 +510,17 @@
     <h2>Questions</h2>
   </div>
   <div class="faq reveal">
-    <details><summary>Is Murmur really free?</summary><p>Yes. Murmur is free and open source under the MIT license, with no paid tier, no trial and no account.</p></details>
-    <details><summary>Does it work offline?</summary><p>Yes. After a one-time download of the speech model, dictation, meeting transcription, speaker identification and summaries all run without an internet connection.</p></details>
-    <details><summary>Which languages does it understand?</summary><p>The default Parakeet model handles 25 European languages, including English, German, French, Spanish and Italian. An English-only model with even higher recall is one click away in Settings.</p></details>
-    <details><summary>How is it different from MacWhisper, superwhisper or Wispr Flow?</summary><p>Murmur combines push-to-talk dictation and meeting transcription in one free, open-source app. Everything runs locally on the Neural Engine using NVIDIA's Parakeet model, which is very fast, and it remembers people across meetings by their voice.</p></details>
-    <details><summary>Can it record Zoom, Google Meet or Teams calls?</summary><p>Yes. Murmur records system audio through a Core Audio tap, so it captures any call app without joining as a bot and without screen-recording permission. It records your microphone on a separate track, so it can tell you apart from the people on the call.</p></details>
-    <details><summary>What do I need?</summary><p>An Apple Silicon Mac running macOS 26 or later. Summaries need Apple Intelligence to be turned on.</p></details>
+    <details><summary>Is there a free dictation app for Mac?</summary><p>Yes. Undersay is free and open source under the MIT license: no paid tier, no trial, no account. macOS also has Apple Dictation built in; Undersay adds hold-to-talk in any app, meeting recording and speaker recognition.</p></details>
+    <details><summary>How is it different from Apple Dictation?</summary><p>You hold fn while you speak and the text lands when you let go, in any app. It's transcribed by NVIDIA's Parakeet model on the Neural Engine, lays out greetings, paragraphs and lists for you, keeps a history, and also records and transcribes meetings.</p></details>
+    <details><summary>Does it work offline? Does any audio leave my Mac?</summary><p>It works offline. After a one-time download of the open-source speech model, dictation, meeting transcription, speaker identification and summaries all run on your Mac. No audio, text or voice print is ever uploaded.</p></details>
+    <details><summary>What's a free alternative to Wispr Flow, superwhisper or MacWhisper?</summary><p>Undersay is a free, open-source alternative that runs entirely on your Mac. It combines push-to-talk dictation and meeting transcription in one app and remembers people across meetings by their voice.</p></details>
+    <details><summary>Can it transcribe Zoom, Teams and Google Meet calls? Does a bot join?</summary><p>Yes, and no bot joins. Undersay records the call's audio through a Core Audio process tap and your microphone on a separate track, so it can tell you apart from the people on the call.</p></details>
+    <details><summary>Why doesn't it need screen-recording permission?</summary><p>It only captures audio. macOS lets apps record system audio with the System Audio Recording permission, so Undersay never sees your screen.</p></details>
+    <details><summary>How does it know who said what?</summary><p>It separates the voices in each recording and compares them with voice prints you've named before. A voice print is a list of numbers that describes a voice; it's stored only on your Mac and you can rename or forget it at any time.</p></details>
+    <details><summary>Which Macs does it run on?</summary><p>Apple Silicon Macs (M1 or later) running macOS 26 or later. Intel Macs aren't supported. Summaries need Apple Intelligence to be turned on.</p></details>
+    <details><summary>Why does macOS say it can't verify the developer?</summary><p>This early version isn't notarized by Apple yet. Open System Settings → Privacy &amp; Security and click Open Anyway once; after that it opens normally.</p></details>
+    <details><summary>Which languages does it support?</summary><p>The default Parakeet Ultra model understands 25 European languages, including English, German, French, Spanish and Italian. An English-only model is available in Settings.</p></details>
+    <details><summary>Is it really free? What's the catch?</summary><p>There isn't one. It's MIT-licensed open source with no account, no server and no tracking. Everything is on GitHub.</p></details>
   </div>
 </section>
 
@@ -425,13 +528,13 @@
   <img src="icon.png" alt="">
   <h2>Hold fn and say hello.</h2>
   <p class="sub2" style="margin:16px auto 30px">Free, private, and faster than typing.</p>
-  <a class="btn big" href="DOWNLOAD_URL">Download Murmur for Mac</a>
+  <a class="btn big" href="DOWNLOAD_URL">Download Undersay for Mac</a>
 </div>
 
 <footer>
   <div class="wrap">
-    <span>Murmur · MIT license · made by <a href="https://github.com/patrickfreyer">Patrick Freyer</a></span>
-    <span><a href="https://github.com/patrickfreyer/Murmur">GitHub</a> · <a href="https://github.com/patrickfreyer/Murmur/releases">Releases</a> · <a href="https://github.com/patrickfreyer/Murmur/issues">Feedback</a></span>
+    <span>Undersay · MIT license · made by <a href="https://github.com/patrickfreyer">Patrick Freyer</a></span>
+    <span><a href="https://github.com/patrickfreyer/Undersay">GitHub</a> · <a href="https://github.com/patrickfreyer/Undersay/releases">Releases</a> · <a href="https://github.com/patrickfreyer/Undersay/issues">Feedback</a></span>
   </div>
 </footer>
 

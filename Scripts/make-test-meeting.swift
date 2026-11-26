@@ -33,7 +33,7 @@ var tracks: [String: [Float]] = ["mic": [], "system": []]
 var cursor = 16_000  // 1 s lead-in
 
 for (voice, track, text) in scripts[variant]! {
-    let tmp = FileManager.default.temporaryDirectory.appending(path: "murmur-say-\(UUID()).caf")
+    let tmp = FileManager.default.temporaryDirectory.appending(path: "undersay-say-\(UUID()).caf")
     let p = Process()
     p.executableURL = URL(fileURLWithPath: "/usr/bin/say")
     p.arguments = ["-v", voice, "-o", tmp.path, "--data-format=LEF32@16000", text]

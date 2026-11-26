@@ -1,16 +1,16 @@
 #!/bin/zsh
-# Builds Murmur.app. Usage: Scripts/build-app.sh [debug|release] [--install]
+# Builds Undersay.app. Usage: Scripts/build-app.sh [debug|release] [--install]
 set -euo pipefail
 cd "$(dirname "$0")/.."
 CONFIG=${1:-release}
-APP=build/Murmur.app
+APP=build/Undersay.app
 
-swift build -c "$CONFIG" --product Murmur
+swift build -c "$CONFIG" --product Undersay
 BIN=$(swift build -c "$CONFIG" --show-bin-path)
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$BIN/Murmur" "$APP/Contents/MacOS/Murmur"
+cp "$BIN/Undersay" "$APP/Contents/MacOS/Undersay"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 # SwiftPM resource bundles (FluidAudio ships a few small ones)
 for b in "$BIN"/*.bundle(N); do cp -R "$b" "$APP/Contents/Resources/"; done
@@ -29,13 +29,13 @@ cp build/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
 # Sign with a stable identity if one exists (keeps Accessibility permission across rebuilds),
 # otherwise ad-hoc.
-IDENTITY=${MURMUR_SIGN_IDENTITY:-$(security find-identity -v -p codesigning | awk -F'"' '/Apple Development|Murmur Dev/{print $2; exit}')}
-codesign --force --options runtime --entitlements Resources/Murmur.entitlements -s "${IDENTITY:--}" "$APP"
+IDENTITY=${UNDERSAY_SIGN_IDENTITY:-$(security find-identity -v -p codesigning | awk -F'"' '/Apple Development|Undersay Dev/{print $2; exit}')}
+codesign --force --options runtime --entitlements Resources/Undersay.entitlements -s "${IDENTITY:--}" "$APP"
 echo "Signed with: ${IDENTITY:-ad-hoc}"
 
 if [[ "${2:-}" == "--install" ]]; then
-  pkill -x Murmur || true
-  rm -rf /Applications/Murmur.app
-  cp -R "$APP" /Applications/Murmur.app
-  echo "Installed to /Applications/Murmur.app"
+  pkill -x Undersay || true
+  rm -rf /Applications/Undersay.app
+  cp -R "$APP" /Applications/Undersay.app
+  echo "Installed to /Applications/Undersay.app"
 fi

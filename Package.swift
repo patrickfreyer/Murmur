@@ -2,9 +2,9 @@
 import PackageDescription
 
 let package = Package(
-    name: "Murmur",
+    name: "Undersay",
     platforms: [.macOS("26.0")],
-    products: [.executable(name: "Murmur", targets: ["Murmur"])],
+    products: [.executable(name: "Undersay", targets: ["Undersay"])],
     dependencies: [
         // ASR (Parakeet on the Neural Engine) + speaker diarization/embeddings. TTS and the
         // NeMo text-normalisation runtime are left out to keep the app small.
@@ -12,18 +12,18 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "MurmurCore",
+            name: "UndersayCore",
             dependencies: [.product(name: "FluidAudio", package: "FluidAudio")],
-            path: "Sources/MurmurCore",
+            path: "Sources/UndersayCore",
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .executableTarget(
-            name: "Murmur",
-            dependencies: ["MurmurCore"],
-            path: "Sources/Murmur",
+            name: "Undersay",
+            dependencies: ["UndersayCore"],
+            path: "Sources/Undersay",
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
-        .testTarget(name: "MurmurTests", dependencies: ["MurmurCore"], path: "Tests/MurmurTests",
+        .testTarget(name: "UndersayTests", dependencies: ["UndersayCore"], path: "Tests/UndersayTests",
                     swiftSettings: [.swiftLanguageMode(.v5)]),
     ]
 )
