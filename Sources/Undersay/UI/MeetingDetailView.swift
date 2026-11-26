@@ -77,6 +77,7 @@ struct MeetingDetailView: View {
                     SpeakerStrip(meeting: meeting) { assigning = $0 }
                         .padding(.bottom, Space.s)
                     SummaryCard(meeting: meeting)
+                    KnowledgeCard(meeting: meeting)
                         .padding(.bottom, Space.l)
 
                     if meeting.segments.isEmpty {

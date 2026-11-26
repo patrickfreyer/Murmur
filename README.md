@@ -42,6 +42,10 @@
 
 **Voice prints that remember people.** Name a speaker once and Undersay recognises that voice in every later meeting, and goes back and labels older ones too. It learns your own voice quietly from your dictations. Voice prints are numeric fingerprints stored only on your Mac.
 
+**Keep your notes up to date (optional).** Connect a folder of notes, such as an Obsidian vault or a knowledge repo. Once a meeting's speakers are named, Undersay runs a short headless [Claude Code](https://claude.com/claude-code) job in that folder. It appends dated facts to the right person and project notes, following the folder's own conventions, and can save a cleaned transcript copy. It only adds and never deletes, and the result appears on the meeting. Committing and pushing is a separate opt-in. You need Claude Code installed and signed in.
+
+**Coach.** One habit to focus on each week, chosen by comparing you with your own history: airtime, questions, cut-ins and hedge words. It also lists the commitments you made and the ones others made to you, and adds a tone check using Apple's on-device sentiment model. Feedback on a meeting comes from Apple Intelligence, only when you ask for it.
+
 | Meetings | A transcript, speakers recognised by voice |
 |---|---|
 | ![Meetings](docs/screenshots/meetings.jpg) | ![Meeting](docs/screenshots/meeting.jpg) |

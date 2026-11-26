@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Knowledge sync** (Settings → Knowledge): after a meeting's speakers are named, a headless Claude Code
+  job appends dated people and project facts to a notes folder you choose, following its conventions, and
+  can save a cleaned transcript copy. Restricted tools, append-only instructions, change detection with
+  git, optional commit and push of exactly the files it changed. Shown on a Knowledge card per meeting.
 - **Coach** (sidebar): one habit to focus on each week, picked against your own history; airtime,
   questions, cut-ins and hedge words; commitments you made and ones others made to you; a tone check
   using Apple's on-device sentiment model; and per-meeting feedback from Apple Intelligence, only when

@@ -26,6 +26,32 @@ enum Entry {
                 print("RAW:\n\(r.text)\n\nFORMATTED:\n\(SmartFormatter.format(words: r.words))")
                 return true
             }
+        } else if args.count >= 4, args[1] == "--knowledge-test" {
+            // Undersay --knowledge-test <knowledge-folder> <meeting-title-substring> [archive-folder]
+            run {
+                let store = MeetingStore()
+                let voices = VoicePrintStore()
+                guard let m = store.meetings.first(where: { $0.title.localizedCaseInsensitiveContains(args[3]) }) else {
+                    print("No meeting matching \(args[3])"); return false
+                }
+                var k = KnowledgeSettings()
+                k.folder = URL(fileURLWithPath: args[2])
+                if args.count >= 5 { k.archiveFolder = URL(fileURLWithPath: args[4]) }
+                k.instructions = ProcessInfo.processInfo.environment["UNDERSAY_KNOWLEDGE_INSTRUCTIONS"]
+                    .flatMap { try? String(contentsOfFile: $0, encoding: .utf8) } ?? ""
+                k.allowedCommands = (ProcessInfo.processInfo.environment["UNDERSAY_KNOWLEDGE_COMMANDS"] ?? "")
+                    .split(separator: ";").map(String.init)
+                print(await ClaudeCLI.status())
+                print("--- transcript ---\n" + TranscriptExport.markdown(m, meName: voices.me?.name ?? "Me", myVoicePrint: voices.me?.id).prefix(900))
+                let t0 = Date()
+                let r = await KnowledgeRunner.shared.run(meeting: m, meName: voices.me?.name ?? "Me", myVoicePrint: voices.me?.id, settings: k)
+                print("--- result after \(Int(Date().timeIntervalSince(t0))) s ---")
+                print("status:", r.status, "cost:", r.costUSD ?? 0, "error:", r.error ?? "-")
+                print("changed:", r.changedFiles)
+                print("archived:", r.archivedFiles)
+                print("summary:\n" + (r.summary ?? ""))
+                return r.status == .done
+            }
         } else if args.count >= 4, args[1] == "--make-demo" {
             run { try await SelfTest.makeDemo(URL(fileURLWithPath: args[2]), URL(fileURLWithPath: args[3])) }
         } else if args.count >= 2, args[1] == "--capture-test" {

@@ -8,9 +8,10 @@ struct SettingsView: View {
             Tab("General", systemImage: "gearshape") { GeneralSettings() }
             Tab("Transcription", systemImage: "waveform") { TranscriptionSettings() }
             Tab("Meetings", systemImage: "person.2.wave.2") { MeetingSettings() }
+            Tab("Knowledge", systemImage: "point.3.connected.trianglepath.dotted") { KnowledgeSettingsView() }
             Tab("Permissions", systemImage: "lock.shield") { PermissionSettings() }
         }
-        .frame(width: 560, height: 440)
+        .frame(width: 600, height: 560)
     }
 }
 

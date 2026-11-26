@@ -38,6 +38,17 @@ final class AppModel {
     var fnMonitorRunning = false
     var summarizing: Set<UUID> = []
     var coaching: Set<UUID> = []
+    var knowledgeRunning: Set<UUID> = []
+    var cliStatus: ClaudeCLI.Status?
+    @ObservationIgnored private var knowledgeDebounce: [UUID: Task<Void, Never>] = [:]
+    var knowledge: KnowledgeSettings = {
+        guard let data = UserDefaults.standard.data(forKey: "knowledgeSettings"),
+            let s = try? JSONDecoder().decode(KnowledgeSettings.self, from: data)
+        else { return KnowledgeSettings() }
+        return s
+    }() {
+        didSet { UserDefaults.standard.set(try? JSONEncoder().encode(knowledge), forKey: "knowledgeSettings") }
+    }
     /// Last focus the Coach page found (shown in the sidebar without recomputing anything).
     var coachFocus: Coach.Focus? = Coach.Focus(rawValue: Defaults.string("coachFocus") ?? "") {
         didSet { Defaults.set(coachFocus?.rawValue ?? "", "coachFocus") }
@@ -226,6 +237,7 @@ final class AppModel {
             await recorder.stop(
                 store: meetings, voices: voices, matcher: matcher, model: asrModel, meName: meName)
             if autoSummarize, Summarizer.isAvailable { await summarize(id) }
+            maybeAutoSync(id)
         }
     }
 
@@ -248,6 +260,43 @@ final class AppModel {
             }
         } catch {
             meetings.update(id) { $0.summary = "Couldn't summarise: \(error.localizedDescription)" }
+        }
+    }
+
+    // MARK: Knowledge
+
+    func refreshCLIStatus() async {
+        cliStatus = await ClaudeCLI.status()
+    }
+
+    /// Runs the knowledge job for a meeting now (one at a time; others wait their turn).
+    func syncKnowledge(_ id: UUID) {
+        guard knowledge.isEnabled, let meeting = meetings.meeting(id), !knowledgeRunning.contains(id) else { return }
+        knowledgeDebounce[id]?.cancel()
+        knowledgeRunning.insert(id)
+        meetings.update(id) { $0.knowledge = KnowledgeState(status: .running) }
+        let settings = knowledge, me = meName, myPrint = voices.me?.id
+        Task {
+            let result = await KnowledgeRunner.shared.run(meeting: meeting, meName: me, myVoicePrint: myPrint, settings: settings)
+            meetings.update(id) { $0.knowledge = result }
+            knowledgeRunning.remove(id)
+            DiagnosticLog.write("knowledge: \(result.status.rawValue) for \(meeting.title), \(result.changedFiles.count) files")
+        }
+    }
+
+    /// Auto-sync once a meeting is ready and its speakers are named. Waits a little after the last
+    /// naming so renaming several speakers in a row triggers one run, not several.
+    func maybeAutoSync(_ id: UUID) {
+        guard knowledge.isEnabled, knowledge.autoSync, let m = meetings.meeting(id), m.knowledge == nil,
+            TranscriptExport.speakersNamed(m)
+        else { return }
+        knowledgeDebounce[id]?.cancel()
+        knowledgeDebounce[id] = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(30))
+            guard !Task.isCancelled, let self, let m = self.meetings.meeting(id), m.knowledge == nil,
+                TranscriptExport.speakersNamed(m)
+            else { return }
+            self.syncKnowledge(id)
         }
     }
 
@@ -278,6 +327,7 @@ final class AppModel {
         SpeakerNaming.assign(
             name: name, to: speakerID, in: meetingID, store: meetings, voices: voices, matcher: matcher,
             isMe: isMe || name == meName)
+        maybeAutoSync(meetingID)
     }
 
     func deleteMeeting(_ id: UUID) {

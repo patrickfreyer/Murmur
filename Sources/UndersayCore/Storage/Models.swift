@@ -92,6 +92,8 @@ public struct Meeting: Codable, Sendable, Identifiable, Hashable {
     public var sourceApp: String?
     /// On-demand coaching notes (generated once, when asked).
     public var coaching: CoachingNotes?
+    /// Knowledge-base sync result, if one ran.
+    public var knowledge: KnowledgeState?
 
     public init(
         id: UUID = UUID(), title: String, createdAt: Date = .now, duration: TimeInterval = 0,
