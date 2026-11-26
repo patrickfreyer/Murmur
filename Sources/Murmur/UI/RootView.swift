@@ -29,6 +29,8 @@ struct RootView: View {
             DictationsView()
         case .voices:
             VoicesView()
+        case .stats:
+            StatsView()
         case .meeting(let id):
             if model.recorder.meetingID == id {
                 LiveMeetingView()
@@ -360,8 +362,8 @@ struct StatTiles: View {
                            tint: .blue, target: .dictations)
             StatTileButton(title: "Voices", value: "\(model.voices.prints.count)", symbol: "person.wave.2.fill",
                            tint: .purple, target: .voices)
-            StatTileButton(title: "Avg. speed", value: averageLatency, symbol: "bolt.fill",
-                           tint: .green, target: .dictations)
+            StatTileButton(title: "Statistics", value: averageLatency, symbol: "chart.bar.fill",
+                           tint: .green, target: .stats)
         }
     }
 
@@ -386,7 +388,7 @@ struct StatTileButton: View {
     @State private var hovering = false
 
     var body: some View {
-        let selected = model.selection == target && title != "Avg. speed"
+        let selected = model.selection == target
         let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
         Button {
             model.selection = target

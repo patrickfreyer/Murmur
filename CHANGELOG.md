@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Statistics page (sidebar tile "Statistics"): words dictated and time saved, latency histogram with
+  median, p95 and real-time factor, speaking pace, a weekday × hour heatmap, top apps, meeting talk share,
+  the people you meet most, an engine room (chip, model, embeddings, disk and memory) and fun facts.
 - Smart formatting for dictation, rule-based and instant: email greetings and sign-offs, paragraph breaks
   from real pauses (measured in the audio), numbered lists from "First… Second… Third…", and the spoken
   commands "new line", "new paragraph" and "bullet point". Single-line fields stay on one line.

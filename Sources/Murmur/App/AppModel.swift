@@ -11,6 +11,7 @@ enum SidebarItem: Hashable {
     case meetings
     case dictations
     case voices
+    case stats
     case meeting(UUID)
 }
 
