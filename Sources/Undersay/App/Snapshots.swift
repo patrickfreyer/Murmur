@@ -38,7 +38,7 @@ enum Snapshots {
             window.makeKeyAndOrderFront(nil)
 
             var shots: [(String, SidebarItem)] = [
-                ("home", .home), ("meetings", .meetings), ("dictations", .dictations), ("voices", .voices),
+                ("home", .today), ("meetings", .meetings), ("dictations", .dictations), ("voices", .people),
                 ("stats", .stats), ("coach", .coach),
             ]
             // Prefer a meeting whose speakers were recognised automatically (shows the voice-print magic).

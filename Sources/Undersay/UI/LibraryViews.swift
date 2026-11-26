@@ -281,7 +281,7 @@ struct VoicesView: View {
         }
         .scrollEdgeEffectStyle(.soft, for: .top)
         .background { AmbientBackdrop(tint: .indigo) }
-        .navigationTitle("Voices")
+        .navigationTitle("People")
         .alert("Rename voice", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
             TextField("Name", text: $newName)
             Button("Save") {

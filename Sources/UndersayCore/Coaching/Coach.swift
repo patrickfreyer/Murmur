@@ -116,6 +116,25 @@ public enum Coach {
         }
     }
 
+    /// Just the commitments (no tone or stats work): for the Today page.
+    public static func commitments(meetings: [Meeting], voices: [VoicePrint], meName: String,
+                                   since: Date) -> [Commitment] {
+        let me = voices.first(where: \.isMe)
+        var out: [Commitment] = []
+        for m in meetings where m.status == .ready && m.createdAt >= since {
+            for seg in m.segments {
+                guard let sp = m.speaker(seg.speakerID) else { continue }
+                let you = (me != nil && sp.voicePrintID == me?.id) || sp.name == meName
+                guard let who = you ? meName : sp.name else { continue }
+                for c in commitments(in: seg.text) {
+                    out.append(Commitment(id: "\(m.id.uuidString)-\(stableHash(c))", who: who, isYou: you, text: c,
+                                          meetingID: m.id, meetingTitle: m.title, date: m.createdAt))
+                }
+            }
+        }
+        return out.sorted { $0.date > $1.date }
+    }
+
     // MARK: - Report
 
     public static func report(

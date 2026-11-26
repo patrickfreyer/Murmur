@@ -2,54 +2,146 @@ import AVFoundation
 import UndersayCore
 import SwiftUI
 
-struct HomeView: View {
+/// Today: what happened today and what's still open. Replaces the old Home page; the big "hold fn"
+/// introduction only shows while you're getting started.
+struct TodayView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
+        let cal = Calendar.current
+        let meetingsToday = model.meetings.meetings.filter { cal.isDateInToday($0.createdAt) }
+        let dictationsToday = model.dictations.items.filter { cal.isDateInToday($0.createdAt) }
+        let open = Coach.commitments(meetings: model.meetings.meetings, voices: model.voices.prints,
+                                     meName: model.meName, since: .now.addingTimeInterval(-14 * 86_400))
+            .filter { $0.isYou && !model.coachDone.contains($0.id) }
+        let runs = model.meetings.meetings.flatMap { m in (m.automationRuns ?? []).map { (m, $0) } }
+            .filter { cal.isDateInToday($0.1.startedAt) }.sorted { $0.1.startedAt > $1.1.startedAt }
+
         ScrollView {
             VStack(alignment: .leading, spacing: Space.xl) {
-                hero
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(Date.now.formatted(.dateTime.weekday(.wide).day().month(.wide)))
+                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                    Text(greeting).font(.title3).foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, Space.xs)
                 if needsSetup { SetupCard() }
                 ModelStatusCard()
-                if !model.dictations.items.isEmpty { recentDictations }
+                if model.dictations.items.count < 5 { hero }
+
+                section("Meetings", count: meetingsToday.count) {
+                    if meetingsToday.isEmpty {
+                        emptyLine("No meetings yet today.", symbol: "person.2.wave.2")
+                    } else {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: Space.l)], spacing: Space.l) {
+                            ForEach(meetingsToday) { MeetingCard(meeting: $0) }
+                        }
+                    }
+                }
+                if !open.isEmpty {
+                    section("You said you'd…", count: open.count) {
+                        VStack(alignment: .leading, spacing: Space.s) {
+                            ForEach(open.prefix(6)) { c in
+                                HStack(alignment: .top, spacing: Space.s + 2) {
+                                    Button { model.toggleCoachDone(c.id) } label: {
+                                        Image(systemName: "circle").font(.system(size: 16)).foregroundStyle(.secondary)
+                                    }
+                                    .buttonStyle(.plain)
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text(c.text).font(.callout).fixedSize(horizontal: false, vertical: true)
+                                        Button(c.meetingTitle) { model.selection = .meeting(c.meetingID) }
+                                            .buttonStyle(.plain).font(.caption).foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(Space.l + 2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .surface(radius: Radius.tile, elevation: 0.5)
+                    }
+                }
+                section(dictationsToday.isEmpty ? "Recent dictations" : "Dictated today",
+                        count: dictationsToday.count) {
+                    let items = dictationsToday.isEmpty ? Array(model.dictations.items.prefix(3)) : Array(dictationsToday.prefix(6))
+                    if items.isEmpty {
+                        emptyLine("Hold fn in any app and talk.", symbol: "globe")
+                    } else {
+                        DictationTimeline(items: items, compact: true)
+                    }
+                }
+                if !runs.isEmpty {
+                    section("Automations", count: runs.count) {
+                        VStack(alignment: .leading, spacing: Space.s) {
+                            ForEach(runs.prefix(6), id: \.1.startedAt) { meeting, run in
+                                Button { model.selection = .meeting(meeting.id) } label: {
+                                    HStack(spacing: Space.s + 2) {
+                                        Image(systemName: run.status == .failed ? "exclamationmark.triangle.fill"
+                                              : run.status == .running ? "ellipsis.circle" : "checkmark.circle.fill")
+                                            .foregroundStyle(run.status == .failed ? .orange : run.status == .running ? .secondary : .green)
+                                        Text("\(run.automationName) · \(meeting.title)").font(.callout.weight(.medium)).lineLimit(1)
+                                        Spacer()
+                                        Text(run.startedAt.formatted(date: .omitted, time: .shortened)).font(.caption).foregroundStyle(.secondary)
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(Space.l + 2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .surface(radius: Radius.tile, elevation: 0.5)
+                    }
+                }
             }
             .padding(.vertical, Space.xl)
             .pageColumn(maxWidth: 940)
         }
         .scrollEdgeEffectStyle(.soft, for: .top)
         .background { AmbientBackdrop() }
-        .navigationTitle("Undersay")
-        .toolbarTitleDisplayMode(.inlineLarge)
+        .navigationTitle("Today")
+    }
+
+    private var greeting: String {
+        let h = Calendar.current.component(.hour, from: .now)
+        let part = h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"
+        return "\(part), \(model.meName)."
     }
 
     private var needsSetup: Bool {
         !model.hasAccessibility || model.micStatus != .authorized || !model.fnMonitorRunning
     }
 
+    private func section<C: View>(_ title: String, count: Int, @ViewBuilder content: () -> C) -> some View {
+        VStack(alignment: .leading, spacing: Space.m) {
+            SectionHeader(title: title) {
+                if count > 0 { Text("\(count)").font(.callout.monospacedDigit()).foregroundStyle(.secondary) }
+            }
+            content()
+        }
+    }
+
+    private func emptyLine(_ text: String, symbol: String) -> some View {
+        Label(text, systemImage: symbol)
+            .font(.callout).foregroundStyle(.secondary)
+            .padding(Space.l)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.quaternary.opacity(0.35), in: .rect(cornerRadius: Radius.tile, style: .continuous))
+    }
+
     private var hero: some View {
         HStack(alignment: .center, spacing: Space.xxl) {
             VStack(alignment: .leading, spacing: Space.m) {
                 Text("Hold \(Image(systemName: "globe")) fn and speak.")
-                    .font(.system(size: 32, weight: .bold, design: .rounded))
-                Text("Release to drop the text into any field, in any app. Double-tap fn to lock it on, tap once to finish. Everything is transcribed on this Mac.")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                Text("Release to drop the text into any field, in any app. Double-tap fn to lock it on, tap once to finish.")
+                    .font(.title3).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: 520, alignment: .leading)
                 HStack(spacing: Space.m) {
-                    Button {
-                        model.dictation.toggleHandsFree()
-                    } label: {
-                        Label("Try dictation", systemImage: "mic.fill")
-                            .frame(minWidth: 150, minHeight: Theme.buttonHeight)
+                    Button { model.dictation.toggleHandsFree() } label: {
+                        Label("Try dictation", systemImage: "mic.fill").frame(minWidth: 150, minHeight: Theme.buttonHeight)
                     }
                     .buttonStyle(.glassProminent)
-                    Button {
-                        model.toggleMeeting()
-                    } label: {
-                        Label(model.recorder.isRecording ? "Stop meeting" : "Record a meeting",
-                              systemImage: model.recorder.isRecording ? "stop.fill" : "person.2.wave.2")
-                            .frame(minWidth: 170, minHeight: Theme.buttonHeight)
+                    Button { model.toggleMeeting() } label: {
+                        Label("Record a meeting", systemImage: "person.2.wave.2").frame(minWidth: 170, minHeight: Theme.buttonHeight)
                     }
                     .buttonStyle(.glass)
                 }
@@ -60,30 +152,8 @@ struct HomeView: View {
             KeyboardCluster(fnActive: model.dictation.state != .idle)
         }
         .padding(Space.xxl)
-        .background {
-            ZStack {
-                RoundedRectangle(cornerRadius: Radius.hero, style: .continuous).fill(.thinMaterial)
-                RoundedRectangle(cornerRadius: Radius.hero, style: .continuous)
-                    .fill(LinearGradient(
-                        colors: [Color.accentColor.opacity(0.20), Color.purple.opacity(0.10), .clear],
-                        startPoint: .topLeading, endPoint: .bottomTrailing))
-            }
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: Radius.hero, style: .continuous)
-                .strokeBorder(LinearGradient(colors: [.white.opacity(0.25), .white.opacity(0.03)],
-                                             startPoint: .top, endPoint: .bottom), lineWidth: 0.75)
-        }
-        .shadow(color: Color.accentColor.opacity(0.12), radius: 30, y: 16)
-    }
-
-    private var recentDictations: some View {
-        VStack(alignment: .leading, spacing: Space.m) {
-            SectionHeader(title: "Recent dictations") {
-                Button("Show all") { model.selection = .dictations }.buttonStyle(.borderless)
-            }
-            DictationTimeline(items: Array(model.dictations.items.prefix(4)), compact: true)
-        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .surface(radius: Radius.hero, elevation: 1)
     }
 }
 

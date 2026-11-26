@@ -3,36 +3,39 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(AppModel.self) private var model
-    @State private var search = ""
 
     var body: some View {
-        @Bindable var model = model
         NavigationSplitView {
-            Sidebar(search: search)
-                .navigationSplitViewColumnWidth(min: 250, ideal: 290, max: 360)
+            Sidebar()
+                .navigationSplitViewColumnWidth(min: 230, ideal: 260, max: 340)
         } detail: {
             NavigationStack {
                 detail
             }
         }
-        .searchable(text: $search, placement: .sidebar, prompt: "Search transcripts")
     }
 
     @ViewBuilder
     private var detail: some View {
-        switch model.selection ?? .home {
-        case .home:
-            HomeView()
+        switch model.selection ?? .today {
+        case .today:
+            TodayView()
         case .meetings:
             MeetingsView()
         case .dictations:
             DictationsView()
-        case .voices:
+        case .people:
             VoicesView()
         case .stats:
             StatsView()
         case .coach:
             CoachView()
+        case .automation(let id):
+            if model.automations.contains(where: { $0.id == id }) {
+                AutomationView(automationID: id).id(id)
+            } else {
+                ContentUnavailableView("Automation not found", systemImage: "bolt.slash")
+            }
         case .meeting(let id):
             if model.recorder.meetingID == id {
                 LiveMeetingView()
@@ -45,90 +48,98 @@ struct RootView: View {
     }
 }
 
+/// One navigation pattern: a record button, then plain sidebar rows grouped by purpose.
 struct Sidebar: View {
     @Environment(AppModel.self) private var model
-    var search: String
 
     var body: some View {
         @Bindable var model = model
         List(selection: $model.selection) {
             Section {
-                // The app's own header doubles as Home, like a Finder favourite: icon, name, live status.
-                SidebarHeader().tag(SidebarItem.home)
+                SidebarHeader()
+                    .selectionDisabled()
+                    .listRowSeparator(.hidden)
                 RecordButton()
                     .padding(.vertical, Space.xs)
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
                     .selectionDisabled()
+                Label("Today", systemImage: "sun.max").tag(SidebarItem.today)
             }
 
-            Section {
-                // Same horizontal bleed as the Record button and the selection highlight, so all
-                // three share one left and right edge.
-                StatTiles()
-                    .padding(.horizontal, -SidebarActionButtonStyle.bleed)
-                    .padding(.bottom, Space.xs)
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .selectionDisabled()
+            Section("Library") {
+                Label("Meetings", systemImage: "person.2.wave.2").tag(SidebarItem.meetings)
+                    .badge(model.meetings.meetings.count)
+                Label("Dictations", systemImage: "text.bubble").tag(SidebarItem.dictations)
+                    .badge(model.dictations.items.count)
+                Label("People", systemImage: "person.crop.circle").tag(SidebarItem.people)
+                    .badge(model.voices.prints.count)
             }
 
-            ForEach(groups, id: \.title) { group in
-                Section(group.title) {
-                    ForEach(group.meetings) { meeting in
-                        MeetingRow(meeting: meeting)
-                            .tag(SidebarItem.meeting(meeting.id))
-                            .swipeActions(edge: .trailing) {
-                                Button(role: .destructive) {
-                                    model.deleteMeeting(meeting.id)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
-                            .contextMenu {
-                                Button("Delete", systemImage: "trash", role: .destructive) {
-                                    model.deleteMeeting(meeting.id)
-                                }
-                            }
+            Section("Insights") {
+                Label {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Coach")
+                        if let focus = model.coachFocus, focus != .needData {
+                            Text(focus.title).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                } icon: {
+                    Image(systemName: "figure.mind.and.body")
+                }
+                .tag(SidebarItem.coach)
+                Label("Statistics", systemImage: "chart.bar").tag(SidebarItem.stats)
+            }
+
+            Section("Automations") {
+                ForEach(model.automations) { a in
+                    Label {
+                        HStack {
+                            Text(a.name).lineLimit(1)
+                            Spacer(minLength: 0)
+                            StatusDot(automation: a)
+                        }
+                    } icon: {
+                        Image(systemName: a.agent.symbol)
+                    }
+                    .tag(SidebarItem.automation(a.id))
+                    .contextMenu {
+                        Button("Delete", systemImage: "trash", role: .destructive) {
+                            if model.selection == .automation(a.id) { model.selection = .today }
+                            model.automations.removeAll { $0.id == a.id }
+                        }
                     }
                 }
+                Button {
+                    let a = model.addAutomation(model.agents.first(where: \.installed)?.kind ?? .claudeCode)
+                    model.selection = .automation(a.id)
+                } label: {
+                    Label("New automation", systemImage: "plus")
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .selectionDisabled()
             }
         }
         .listStyle(.sidebar)
-        .environment(\.defaultMinListRowHeight, Theme.touchTarget)
+        .environment(\.defaultMinListRowHeight, 32)
+        .task { await model.refreshAgents() }
     }
+}
 
-    private var filtered: [Meeting] {
-        let q = search.trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { return model.meetings.meetings }
-        return model.meetings.meetings.filter { m in
-            m.title.localizedCaseInsensitiveContains(q)
-                || m.segments.contains { $0.text.localizedCaseInsensitiveContains(q) }
-                || m.speakers.contains { $0.displayName.localizedCaseInsensitiveContains(q) }
-        }
-    }
+/// Green: last run worked. Orange: last run failed. Grey: off or never run. Pulsing while running.
+struct StatusDot: View {
+    @Environment(AppModel.self) private var model
+    let automation: Automation
 
-    private var groups: [(title: String, meetings: [Meeting])] {
-        let cal = Calendar.current
-        var buckets: [(String, [Meeting])] = []
-        for m in filtered {
-            let title: String
-            if cal.isDateInToday(m.createdAt) {
-                title = "Today"
-            } else if cal.isDateInYesterday(m.createdAt) {
-                title = "Yesterday"
-            } else if let days = cal.dateComponents([.day], from: m.createdAt, to: .now).day, days < 7 {
-                title = "This Week"
-            } else {
-                title = m.createdAt.formatted(.dateTime.month(.wide).year())
-            }
-            if let i = buckets.firstIndex(where: { $0.0 == title }) {
-                buckets[i].1.append(m)
-            } else {
-                buckets.append((title, [m]))
-            }
-        }
-        return buckets.map { (title: $0.0, meetings: $0.1) }
+    var body: some View {
+        let run = model.latestRun(of: automation.id)
+        let color: Color = !automation.enabled ? .secondary.opacity(0.4)
+            : run?.status == .failed ? .orange : run?.status == .done ? .green
+            : run?.status == .running ? .accentColor : .secondary.opacity(0.4)
+        Circle().fill(color).frame(width: 7, height: 7)
+            .symbolEffect(.pulse, isActive: run?.status == .running)
+            .help(run.map { "Last run \($0.startedAt.formatted(.relative(presentation: .named))): \($0.status.rawValue)" } ?? "Hasn't run yet")
     }
 }
 
@@ -351,89 +362,6 @@ struct SidebarActionButtonStyle: ButtonStyle {
     }
 }
 
-/// Reminders-style summary tiles at the top of the sidebar: each one is a live count and a way in.
-struct StatTiles: View {
-    @Environment(AppModel.self) private var model
-
-    var body: some View {
-        let columns = [GridItem(.flexible(), spacing: Space.s), GridItem(.flexible(), spacing: Space.s)]
-        VStack(spacing: Space.s) {
-        LazyVGrid(columns: columns, spacing: Space.s) {
-            StatTileButton(title: "Meetings", value: "\(model.meetings.meetings.count)", symbol: "person.2.wave.2.fill",
-                           tint: .orange, target: .meetings)
-            StatTileButton(title: "Words", value: compact(model.dictations.totalWords), symbol: "text.bubble.fill",
-                           tint: .blue, target: .dictations)
-            StatTileButton(title: "Voices", value: "\(model.voices.prints.count)", symbol: "person.wave.2.fill",
-                           tint: .purple, target: .voices)
-            StatTileButton(title: "Statistics", value: averageLatency, symbol: "chart.bar.fill",
-                           tint: .green, target: .stats)
-        }
-        CoachTile()
-        }
-    }
-
-    private var averageLatency: String {
-        let recent = model.dictations.items.prefix(20)
-        guard !recent.isEmpty else { return "–" }
-        return "\(Int(recent.map(\.processingTime).reduce(0, +) / Double(recent.count) * 1000))ms"
-    }
-
-    private func compact(_ n: Int) -> String {
-        n >= 10_000 ? String(format: "%.0fk", Double(n) / 1000) : n >= 1000 ? String(format: "%.1fk", Double(n) / 1000) : "\(n)"
-    }
-}
-
-struct StatTileButton: View {
-    @Environment(AppModel.self) private var model
-    var title: String
-    var value: String
-    var symbol: String
-    var tint: Color
-    var target: SidebarItem
-    @State private var hovering = false
-
-    var body: some View {
-        let selected = model.selection == target
-        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
-        Button {
-            model.selection = target
-        } label: {
-            VStack(alignment: .leading, spacing: Space.s - 2) {
-                HStack(alignment: .top) {
-                    Image(systemName: symbol)
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 26, height: 26)
-                        .background(Circle().fill(selected ? AnyShapeStyle(.white.opacity(0.28)) : AnyShapeStyle(tint.gradient)))
-                        .shadow(color: tint.opacity(selected ? 0 : 0.35), radius: 3, y: 1)
-                    Spacer(minLength: 0)
-                    Text(value)
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                        .contentTransition(.numericText())
-                        .foregroundStyle(selected ? .white : .primary)
-                }
-                Text(title)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(selected ? .white.opacity(0.9) : .secondary)
-            }
-            .padding(Space.s + 2)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background {
-                shape.fill(selected ? AnyShapeStyle(tint.gradient) : AnyShapeStyle(.primary.opacity(hovering ? 0.09 : 0.055)))
-                    .overlay { shape.strokeBorder(.primary.opacity(selected ? 0 : 0.06), lineWidth: 0.5) }
-            }
-            .contentShape(shape)
-        }
-        .buttonStyle(PressScaleStyle(scale: 0.96))
-        .onHover { hovering = $0 }
-        .animation(.easeOut(duration: 0.15), value: hovering)
-        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: selected)
-    }
-}
-
 struct SidebarHeader: View {
     @Environment(AppModel.self) private var model
 
@@ -484,50 +412,5 @@ struct SidebarHeader: View {
         if !model.fnMonitorRunning { return .orange }
         if case .ready = model.modelStatus { return .green }
         return .yellow
-    }
-}
-
-/// Full-width tile under the stats grid: the Coach and this week's focus.
-struct CoachTile: View {
-    @Environment(AppModel.self) private var model
-    @State private var hovering = false
-
-    var body: some View {
-        let selected = model.selection == .coach
-        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
-        let tint = Color.teal
-        Button {
-            model.selection = .coach
-        } label: {
-            HStack(spacing: Space.s + 2) {
-                Image(systemName: "figure.mind.and.body")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 26, height: 26)
-                    .background(Circle().fill(selected ? AnyShapeStyle(.white.opacity(0.28)) : AnyShapeStyle(tint.gradient)))
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("Coach").font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(selected ? .white.opacity(0.9) : .secondary)
-                    Text(model.coachFocus?.title ?? "Communication tips")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(selected ? .white : .primary)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right").font(.caption.weight(.bold))
-                    .foregroundStyle(selected ? .white.opacity(0.8) : .secondary.opacity(0.6))
-            }
-            .padding(.horizontal, Space.s + 2)
-            .padding(.vertical, Space.s)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background {
-                shape.fill(selected ? AnyShapeStyle(tint.gradient) : AnyShapeStyle(.primary.opacity(hovering ? 0.09 : 0.055)))
-                    .overlay { shape.strokeBorder(.primary.opacity(selected ? 0 : 0.06), lineWidth: 0.5) }
-            }
-            .contentShape(shape)
-        }
-        .buttonStyle(PressScaleStyle(scale: 0.97))
-        .onHover { hovering = $0 }
-        .animation(.easeOut(duration: 0.15), value: hovering)
     }
 }

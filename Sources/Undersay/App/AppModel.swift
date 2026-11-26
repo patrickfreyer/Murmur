@@ -7,12 +7,13 @@ import ServiceManagement
 import SwiftUI
 
 enum SidebarItem: Hashable {
-    case home
+    case today
     case meetings
     case dictations
-    case voices
+    case people
     case stats
     case coach
+    case automation(UUID)
     case meeting(UUID)
 }
 
@@ -31,23 +32,18 @@ final class AppModel {
     @ObservationIgnored let fnMonitor = FnKeyMonitor()
     @ObservationIgnored private var hud: HUDController?
 
-    var selection: SidebarItem? = .home
+    var selection: SidebarItem? = .today
     var modelStatus: ModelStatus = .idle
     var hasAccessibility = AXIsProcessTrusted()
     var micStatus = AVCaptureDevice.authorizationStatus(for: .audio)
     var fnMonitorRunning = false
     var summarizing: Set<UUID> = []
     var coaching: Set<UUID> = []
-    var knowledgeRunning: Set<UUID> = []
-    var cliStatus: ClaudeCLI.Status?
-    @ObservationIgnored private var knowledgeDebounce: [UUID: Task<Void, Never>] = [:]
-    var knowledge: KnowledgeSettings = {
-        guard let data = UserDefaults.standard.data(forKey: "knowledgeSettings"),
-            let s = try? JSONDecoder().decode(KnowledgeSettings.self, from: data)
-        else { return KnowledgeSettings() }
-        return s
-    }() {
-        didSet { UserDefaults.standard.set(try? JSONEncoder().encode(knowledge), forKey: "knowledgeSettings") }
+    var agents: [AgentInfo] = []
+    /// Meetings with an automation running or queued, by automation.
+    var automationsRunning: Set<String> = []
+    var automations: [Automation] = AppModel.loadAutomations() {
+        didSet { UserDefaults.standard.set(try? JSONEncoder().encode(automations), forKey: "automations") }
     }
     /// Last focus the Coach page found (shown in the sidebar without recomputing anything).
     var coachFocus: Coach.Focus? = Coach.Focus(rawValue: Defaults.string("coachFocus") ?? "") {
@@ -117,6 +113,10 @@ final class AppModel {
     // MARK: Lifecycle
 
     func launch() {
+        // Persist migrated automations right away (didSet doesn't fire for initial values).
+        if UserDefaults.standard.data(forKey: "automations") == nil, !automations.isEmpty {
+            UserDefaults.standard.set(try? JSONEncoder().encode(automations), forKey: "automations")
+        }
         DiagnosticLog.rotate()
         let bundle = Bundle.main.bundlePath
         DiagnosticLog.write("launch \(bundle) AX=\(AXIsProcessTrusted()) listen=\(CGPreflightListenEventAccess()) post=\(CGPreflightPostEventAccess())")
@@ -237,7 +237,7 @@ final class AppModel {
             await recorder.stop(
                 store: meetings, voices: voices, matcher: matcher, model: asrModel, meName: meName)
             if autoSummarize, Summarizer.isAvailable { await summarize(id) }
-            maybeAutoSync(id)
+            runAutomations(after: id)
         }
     }
 
@@ -263,41 +263,76 @@ final class AppModel {
         }
     }
 
-    // MARK: Knowledge
+    // MARK: Automations
 
-    func refreshCLIStatus() async {
-        cliStatus = await ClaudeCLI.status()
+    static func loadAutomations() -> [Automation] {
+        let d = UserDefaults.standard
+        if let data = d.data(forKey: "automations"), let list = try? JSONDecoder().decode([Automation].self, from: data) {
+            return list
+        }
+        // One-time migration from the earlier "Knowledge" setting.
+        guard let data = d.data(forKey: "knowledgeSettings"),
+            let old = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let folderString = old["folder"] as? String, let folder = URL(string: folderString)
+        else { return [] }
+        var prompt = (old["instructions"] as? String) ?? ""
+        if let archive = (old["archiveFolder"] as? String).flatMap(URL.init(string:)) {
+            prompt += "\n\nAlso save a cleaned, readable copy of the transcript as \(archive.path)/<project-or-client-slug>/<YYYY-MM-DD>_<short-topic>.txt (\"_internal\" for internal meetings, \"_unsorted\" if unsure)."
+        }
+        var a = Automation(name: "Knowledge graph", agent: .claudeCode, folder: folder,
+                           prompt: "Enrich my knowledge graph from this transcript.\n\n" + prompt)
+        a.runAutomatically = old["autoSync"] as? Bool ?? false
+        a.allowShell = !((old["allowedCommands"] as? [String]) ?? []).isEmpty
+        a.model = old["model"] as? String
+        return [a]
     }
 
-    /// Runs the knowledge job for a meeting now (one at a time; others wait their turn).
-    func syncKnowledge(_ id: UUID) {
-        guard knowledge.isEnabled, let meeting = meetings.meeting(id), !knowledgeRunning.contains(id) else { return }
-        knowledgeDebounce[id]?.cancel()
-        knowledgeRunning.insert(id)
-        meetings.update(id) { $0.knowledge = KnowledgeState(status: .running) }
-        let settings = knowledge, me = meName, myPrint = voices.me?.id
+    func refreshAgents() async {
+        agents = await Agents.detect()
+    }
+
+    func key(_ meeting: UUID, _ automation: UUID) -> String { "\(meeting)-\(automation)" }
+
+    func run(_ automation: Automation, on meetingID: UUID) {
+        let k = key(meetingID, automation.id)
+        guard let meeting = meetings.meeting(meetingID), !automationsRunning.contains(k) else { return }
+        automationsRunning.insert(k)
+        setRun(AutomationRun(automation: automation), on: meetingID)
+        let me = meName, myPrint = voices.me?.id
         Task {
-            let result = await KnowledgeRunner.shared.run(meeting: meeting, meName: me, myVoicePrint: myPrint, settings: settings)
-            meetings.update(id) { $0.knowledge = result }
-            knowledgeRunning.remove(id)
-            DiagnosticLog.write("knowledge: \(result.status.rawValue) for \(meeting.title), \(result.changedFiles.count) files")
+            // Runs are serialised inside the runner actor: one agent at a time.
+            let result = await AutomationRunner.shared.run(automation, meeting: meeting, meName: me, myVoicePrint: myPrint)
+            setRun(result, on: meetingID)
+            automationsRunning.remove(k)
+            DiagnosticLog.write("automation \(automation.name): \(result.status.rawValue) on \(meeting.title)")
         }
     }
 
-    /// Auto-sync once a meeting is ready and its speakers are named. Waits a little after the last
-    /// naming so renaming several speakers in a row triggers one run, not several.
-    func maybeAutoSync(_ id: UUID) {
-        guard knowledge.isEnabled, knowledge.autoSync, let m = meetings.meeting(id), m.knowledge == nil,
-            TranscriptExport.speakersNamed(m)
-        else { return }
-        knowledgeDebounce[id]?.cancel()
-        knowledgeDebounce[id] = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(30))
-            guard !Task.isCancelled, let self, let m = self.meetings.meeting(id), m.knowledge == nil,
-                TranscriptExport.speakersNamed(m)
-            else { return }
-            self.syncKnowledge(id)
+    private func setRun(_ run: AutomationRun, on meetingID: UUID) {
+        meetings.update(meetingID) { m in
+            var runs = m.automationRuns ?? []
+            runs.removeAll { $0.automationID == run.automationID }
+            runs.append(run)
+            m.automationRuns = runs
         }
+    }
+
+    /// After a meeting is transcribed (and summarised), run every automation set to run automatically.
+    func runAutomations(after meetingID: UUID) {
+        guard meetings.meeting(meetingID)?.status == .ready else { return }
+        for a in automations where a.enabled && a.runAutomatically { run(a, on: meetingID) }
+    }
+
+    func latestRun(of automation: UUID) -> AutomationRun? {
+        meetings.meetings.compactMap { $0.automationRuns?.first { $0.automationID == automation } }
+            .max { $0.startedAt < $1.startedAt }
+    }
+
+    func addAutomation(_ agent: AgentKind) -> Automation {
+        let a = Automation(name: "New automation", agent: agent,
+                           prompt: "Summarise the decisions and action items from this meeting into a note in this folder.")
+        automations.append(a)
+        return a
     }
 
     func toggleCoachDone(_ id: String) {
@@ -327,11 +362,10 @@ final class AppModel {
         SpeakerNaming.assign(
             name: name, to: speakerID, in: meetingID, store: meetings, voices: voices, matcher: matcher,
             isMe: isMe || name == meName)
-        maybeAutoSync(meetingID)
     }
 
     func deleteMeeting(_ id: UUID) {
-        if selection == .meeting(id) { selection = .home }
+        if selection == .meeting(id) { selection = .today }
         if player.meetingID == id { player.unload() }
         meetings.delete(id)
     }
