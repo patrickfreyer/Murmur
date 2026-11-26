@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Smart formatting for dictation, rule-based and instant: email greetings and sign-offs, paragraph breaks
+  from real pauses (measured in the audio), numbered lists from "First… Second… Third…", and the spoken
+  commands "new line", "new paragraph" and "bullet point". Single-line fields stay on one line.
+
 ## 0.9.0 — first public beta
 
 - Hold **fn** to dictate into any app; double-tap to lock it on, tap once to finish; esc cancels

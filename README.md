@@ -28,7 +28,8 @@
 - Hold <kbd>fn</kbd> to talk, release to insert
 - Double-tap <kbd>fn</kbd> to lock it on for longer dictation, then tap once to finish
 - <kbd>esc</kbd> cancels
-- Spacing and capitalisation adapt to the text that's already around your cursor
+- Smart formatting with no language model involved: greetings and sign-offs get their own lines, a pause after a sentence starts a new paragraph, and "First… Second… Third…" becomes a numbered list. You can also say "new line", "new paragraph" or "bullet point".
+- Spacing and capitalisation adapt to the text that's already around your cursor; single-line fields stay on one line
 - Your clipboard is put back the way it was
 
 <p align="center">

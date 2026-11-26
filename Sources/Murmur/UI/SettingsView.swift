@@ -31,6 +31,9 @@ private struct GeneralSettings: View {
                 LabeledContent("Lock on", value: "Double-tap fn · tap once to finish")
                 LabeledContent("Cancel", value: "Esc")
                 Toggle("Stop fn from opening emoji / Apple dictation", isOn: $model.suppressGlobeAction)
+                Toggle("Smart formatting", isOn: $model.smartFormatting)
+                Text("Greetings and sign-offs on their own lines, a new paragraph when you pause after a sentence, “First… Second… Third…” as a list. Say “new line”, “new paragraph” or “bullet point” any time.")
+                    .font(.caption).foregroundStyle(.secondary)
                 Toggle("Sound effects", isOn: $model.soundEffects)
             }
             Section {

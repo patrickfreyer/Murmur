@@ -13,6 +13,18 @@ enum Entry {
             run { try await SelfTest.transcribe(URL(fileURLWithPath: args[2])) }
         } else if args.count >= 4, args[1] == "--selftest" {
             run { try await SelfTest.meetings(URL(fileURLWithPath: args[2]), URL(fileURLWithPath: args[3])) }
+        } else if args.count >= 3, args[1] == "--format" {
+            run {
+                try await SpeechEngine.shared.prepareASR(.ultra)
+                let samples = try AudioConverterShim.load(URL(fileURLWithPath: args[2]))
+                var r = try await SpeechEngine.shared.transcribe(samples)
+                r.words = PauseAligner.align(r.words, silences: PauseAligner.silences(in: samples))
+                if ProcessInfo.processInfo.environment["MURMUR_DEBUG_WORDS"] != nil {
+                    for w in r.words { print(String(format: "%6.2f–%6.2f  %@", w.start, w.end, w.text)) }
+                }
+                print("RAW:\n\(r.text)\n\nFORMATTED:\n\(SmartFormatter.format(words: r.words))")
+                return true
+            }
         } else if args.count >= 4, args[1] == "--make-demo" {
             run { try await SelfTest.makeDemo(URL(fileURLWithPath: args[2]), URL(fileURLWithPath: args[3])) }
         } else if args.count >= 2, args[1] == "--capture-test" {
@@ -209,5 +221,18 @@ enum SelfTest {
         for seg in m.segments {
             print("  [\(Meeting.timestamp(seg.start))] \(m.speaker(seg.speakerID)?.displayName ?? "?"): \(seg.text)")
         }
+    }
+}
+
+import AVFoundation
+
+/// Loads any audio file as 16 kHz mono samples (for the --format check).
+enum AudioConverterShim {
+    static func load(_ url: URL) throws -> [Float] {
+        let file = try AVAudioFile(forReading: url)
+        guard let buf = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(file.length))
+        else { return [] }
+        try file.read(into: buf)
+        return Resampler().convert(buf)
     }
 }

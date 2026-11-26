@@ -63,6 +63,9 @@ final class AppModel {
     var captureSystemAudio: Bool = Defaults.bool("captureSystemAudio", true) {
         didSet { Defaults.set(captureSystemAudio, "captureSystemAudio") }
     }
+    var smartFormatting: Bool = Defaults.bool("smartFormatting", true) {
+        didSet { Defaults.set(smartFormatting, "smartFormatting"); dictation.smartFormatting = smartFormatting }
+    }
     var soundEffects: Bool = Defaults.bool("soundEffects", true) {
         didSet { Defaults.set(soundEffects, "soundEffects") }
     }
@@ -100,6 +103,7 @@ final class AppModel {
         dictation.model = asrModel
         dictation.meName = meName
         dictation.learnMyVoice = learnMyVoice
+        dictation.smartFormatting = smartFormatting
         dictation.onDictation = { [weak self] d in self?.dictations.add(d) }
         dictation.onVoiceSample = { [weak self] e in
             guard let self else { return }

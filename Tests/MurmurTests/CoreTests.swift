@@ -1,4 +1,5 @@
 import Foundation
+import FluidAudio
 import Testing
 @testable import MurmurCore
 
@@ -29,6 +30,28 @@ import Testing
     @Test func removesMicEchoOfSystemAudio() {
         let words = [w("hello", 1, 1.3, .system), w("hello", 1.2, 1.5, .mic), w("mine", 3, 3.2, .mic)]
         #expect(TranscriptAssembler.removeEcho(words).map(\.track) == [.system, .mic])
+    }
+
+    @Test func punctuationDoesNotHidePauses() {
+        let tokens = [
+            TokenTiming(token: "▁done", tokenId: 1, startTime: 0.0, endTime: 0.4, confidence: 1),
+            TokenTiming(token: ".", tokenId: 2, startTime: 1.9, endTime: 2.0, confidence: 1),
+            TokenTiming(token: "▁next", tokenId: 3, startTime: 2.0, endTime: 2.3, confidence: 1),
+        ]
+        let w = WordBuilder.words(from: tokens, offset: 0, track: .mic)
+        #expect(w.map(\.text) == ["done.", "next"])
+        #expect(w[0].end == 0.35)
+    }
+
+    @Test func silenceSnapsWordEnds() {
+        // 1 s of tone, 1.5 s of silence, 1 s of tone.
+        let tone = (0..<16_000).map { Float(sin(Double($0) * 0.3)) * 0.3 }
+        let samples = tone + [Float](repeating: 0, count: 24_000) + tone
+        let sil = PauseAligner.silences(in: samples)
+        #expect(sil.count == 1)
+        let words = [Word(text: "done.", start: 0.5, end: 2.4, track: .mic), Word(text: "next", start: 2.5, end: 2.9, track: .mic)]
+        let aligned = PauseAligner.align(words, silences: sil)
+        #expect(abs(aligned[0].end - 1.0) < 0.05)
     }
 
     @Test func tidyPunctuation() {

@@ -7,7 +7,12 @@ public enum TextInserter {
     public struct Context {
         public var precedingCharacter: Character?
         public var hasSelection: Bool
+        /// false for one-line fields (search boxes, URL bars, form inputs), where line breaks don't belong.
+        public var isMultiline: Bool = true
     }
+
+    /// Roles of fields that only hold a single line.
+    static let singleLineRoles: Set<String> = ["AXTextField", "AXSearchField", "AXComboBox"]
 
     /// Best-effort look at the focused field (via Accessibility) to decide spacing/capitalisation.
     public static func focusedContext() -> Context? {
@@ -17,23 +22,30 @@ public enum TextInserter {
             let element = focused, CFGetTypeID(element) == AXUIElementGetTypeID()
         else { return nil }
         let el = element as! AXUIElement
+        var roleRef: CFTypeRef?
+        var subroleRef: CFTypeRef?
+        AXUIElementCopyAttributeValue(el, kAXRoleAttribute as CFString, &roleRef)
+        AXUIElementCopyAttributeValue(el, kAXSubroleAttribute as CFString, &subroleRef)
+        let role = roleRef as? String ?? ""
+        let subrole = subroleRef as? String ?? ""
+        let multiline = !(singleLineRoles.contains(role) || singleLineRoles.contains(subrole))
         var rangeRef: CFTypeRef?
         var valueRef: CFTypeRef?
         guard AXUIElementCopyAttributeValue(el, kAXSelectedTextRangeAttribute as CFString, &rangeRef) == .success,
             let rangeValue = rangeRef, CFGetTypeID(rangeValue) == AXValueGetTypeID()
-        else { return nil }
+        else { return Context(precedingCharacter: nil, hasSelection: false, isMultiline: multiline) }
         var range = CFRange()
         AXValueGetValue(rangeValue as! AXValue, .cfRange, &range)
         guard AXUIElementCopyAttributeValue(el, kAXValueAttribute as CFString, &valueRef) == .success,
             let value = valueRef as? String
-        else { return Context(precedingCharacter: nil, hasSelection: range.length > 0) }
+        else { return Context(precedingCharacter: nil, hasSelection: range.length > 0, isMultiline: multiline) }
         let ns = value as NSString
         var preceding: Character?
         if range.location > 0, range.location <= ns.length {
             let r = ns.rangeOfComposedCharacterSequence(at: range.location - 1)
             preceding = ns.substring(with: r).last
         }
-        return Context(precedingCharacter: preceding, hasSelection: range.length > 0)
+        return Context(precedingCharacter: preceding, hasSelection: range.length > 0, isMultiline: multiline)
     }
 
     /// Adapts dictated text to where it lands: adds a leading space after a word, and
@@ -43,7 +55,7 @@ public enum TextInserter {
         var t = text
         if !prev.isWhitespace, !"([{\"'“‘/-".contains(prev) { t = " " + t }
         let continuing = prev.isLetter || prev.isNumber || prev == ","
-        if continuing, let first = t.first(where: { !$0.isWhitespace }), first.isUppercase,
+        if continuing, !t.contains("\n"), let first = t.first(where: { !$0.isWhitespace }), first.isUppercase,
             let idx = t.firstIndex(of: first)
         {
             // Keep "I", acronyms and names that are all-caps or likely proper nouns.

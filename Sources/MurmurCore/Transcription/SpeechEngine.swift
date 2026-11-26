@@ -154,6 +154,14 @@ public enum EngineError: LocalizedError {
 
 /// Merges SentencePiece tokens into words with timings.
 public enum WordBuilder {
+    /// The decoder lets the last token before a silence run on into it; no speech token is
+    /// really longer than this, so cap it to keep pauses measurable.
+    static let maxTokenDuration: TimeInterval = 0.35
+
+    static func tokenEnd(_ t: TokenTiming) -> TimeInterval {
+        min(t.endTime, t.startTime + maxTokenDuration)
+    }
+
     public static func words(from tokens: [TokenTiming], offset: TimeInterval, track: AudioTrack) -> [Word] {
         var words: [Word] = []
         for token in tokens {
@@ -165,9 +173,11 @@ public enum WordBuilder {
             let isPunctuation = piece.unicodeScalars.allSatisfy { CharacterSet.punctuationCharacters.contains($0) }
             if let last = words.indices.last, !startsWord || isPunctuation {
                 words[last].text += piece
-                words[last].end = max(words[last].end, token.endTime + offset)
+                // Punctuation is emitted late (often when the next speech starts); letting it stretch
+                // the word would hide the pause that follows it.
+                if !isPunctuation { words[last].end = max(words[last].end, tokenEnd(token) + offset) }
             } else {
-                words.append(Word(text: piece, start: token.startTime + offset, end: token.endTime + offset, track: track))
+                words.append(Word(text: piece, start: token.startTime + offset, end: tokenEnd(token) + offset, track: track))
             }
         }
         return words

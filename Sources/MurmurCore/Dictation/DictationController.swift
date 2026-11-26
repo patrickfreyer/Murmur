@@ -43,6 +43,8 @@ public final class DictationController {
 
     public var model: ASRModelChoice = .ultra
     public var learnMyVoice = true
+    /// Lay out greetings, sign-offs, paragraphs and lists (rule-based, no language model).
+    public var smartFormatting = true
     public var meName = "Me"
     public var onDictation: ((Dictation) -> Void)?
     public var onVoiceSample: (@MainActor ([Float]) -> Void)?
@@ -212,13 +214,20 @@ public final class DictationController {
                 state = .idle
                 return
             }
-            let text = TextInserter.adapt(result.text, to: TextInserter.focusedContext())
+            let context = TextInserter.focusedContext()
+            let formatted = smartFormatting
+                ? SmartFormatter.format(
+                    words: PauseAligner.align(result.words, silences: PauseAligner.silences(in: samples)),
+                    options: .init(multiline: context?.isMultiline ?? true))
+                : result.text
+            let text = TextInserter.adapt(formatted.isEmpty ? result.text : formatted, to: context)
             TextInserter.insert(text)
             let elapsed = Date.now.timeIntervalSince(started)
             log.info("Dictated \(duration, format: .fixed(precision: 1))s in \(elapsed, format: .fixed(precision: 2))s")
             onDictation?(
                 Dictation(
-                    text: result.text, duration: duration, appName: targetAppName, appBundleID: targetBundleID,
+                    text: formatted.isEmpty ? result.text : formatted, duration: duration, appName: targetAppName,
+                    appBundleID: targetBundleID,
                     processingTime: elapsed))
             state = .inserted(result.text)
             onCue?(.inserted)
